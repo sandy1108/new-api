@@ -1,0 +1,125 @@
+{
+  "info": {
+    "_postman_id": "f7d1f4b4-4a4f-4f82-bb23-7ab3b0d7b5a7",
+    "name": "New API 自定义接口",
+    "description": "PongAPI / New API 自定义后台接口集合。\n\n当前包含日志用量聚合接口。请在导入后设置 dashboard_token；集合文件不包含任何真实凭据。管理员接口和当前用户接口都使用后台 Authorization，不使用 /v1 relay API Key。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{dashboard_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "new_api_base_url",
+      "value": "http://127.0.0.1:3000",
+      "type": "string",
+      "description": "开发测试地址；发布后再替换为实际网关地址"
+    },
+    {
+      "key": "dashboard_token",
+      "value": "",
+      "type": "string",
+      "description": "面板登录 JWT 或后台 PAT；不要填写 /v1 relay API Key"
+    },
+    {
+      "key": "start_timestamp",
+      "value": "",
+      "type": "string",
+      "description": "可选，Unix 秒时间戳"
+    },
+    {
+      "key": "end_timestamp",
+      "value": "",
+      "type": "string",
+      "description": "可选，Unix 秒时间戳"
+    }
+  ],
+  "item": [
+    {
+      "name": "New API - 日志用量聚合",
+      "description": "只读聚合接口。数据源为 LOG_DB.logs 中的 type=2 消费日志；不分页、不修改原始日志。",
+      "item": [
+        {
+          "name": "管理员：日志用量聚合（全量）",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{new_api_base_url}}/api/log/usage-summary",
+              "host": [
+                "{{new_api_base_url}}"
+              ],
+              "path": [
+                "api",
+                "log",
+                "usage-summary"
+              ]
+            },
+            "description": "需要 AdminAuth。返回全量消费日志的总计和按用户、令牌、渠道、模型聚合的 items。"
+          },
+          "response": []
+        },
+        {
+          "name": "管理员：日志用量聚合（时间范围）",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{new_api_base_url}}/api/log/usage-summary?start_timestamp={{start_timestamp}}&end_timestamp={{end_timestamp}}",
+              "host": [
+                "{{new_api_base_url}}"
+              ],
+              "path": [
+                "api",
+                "log",
+                "usage-summary"
+              ],
+              "query": [
+                {
+                  "key": "start_timestamp",
+                  "value": "{{start_timestamp}}",
+                  "description": "可选，Unix 秒时间戳，闭区间下界"
+                },
+                {
+                  "key": "end_timestamp",
+                  "value": "{{end_timestamp}}",
+                  "description": "可选，Unix 秒时间戳，闭区间上界"
+                }
+              ]
+            },
+            "description": "需要 AdminAuth。先在集合变量中填写 start_timestamp 和 end_timestamp；也可以在 Params 中继续添加 username、token_name、model_name、channel、group。"
+          },
+          "response": []
+        },
+        {
+          "name": "当前用户：日志用量聚合",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{new_api_base_url}}/api/log/self/usage-summary",
+              "host": [
+                "{{new_api_base_url}}"
+              ],
+              "path": [
+                "api",
+                "log",
+                "self",
+                "usage-summary"
+              ]
+            },
+            "description": "需要 UserAuth。服务端始终按认证用户 ID 查询，客户端传入 username 不会扩大查询范围。"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
