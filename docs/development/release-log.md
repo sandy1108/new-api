@@ -193,3 +193,18 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 开发 Worktree 的 `web/dist` 原本为空；按仓库 CI 和 `Dockerfile.dev` 的既定做法临时创建最小 `index.html` 后，`GOWORK=off go test -count=1 -timeout=15m ./...`、`GOWORK=off go vet ./...`、`relaykit` 独立测试和 `GOWORK=off go build ./...` 均通过。占位文件及一次性 Go 测试缓存卷已清理，未进入 Git。
 - 开发容器 `new-api-dev` 使用镜像 `new-api:dev-20260831-01-g5d3ec41`，`/api/status` 返回 `success=true`；两个聚合接口未认证均返回 401，最近 30 分钟日志无 fatal/panic/migration/error。
 - 开发 Compose 已固定顶层项目名 `new-api-dev`，与现有容器标签和数据卷命名一致；因此后续可直接使用 `docker compose -f docker-compose.dev.yml ...` 管理当前开发栈，无需额外追加 `-p`。该配置变更只影响 Compose 项目标识，不会自动重启容器或触碰生产。
+
+### 生产候选镜像构建（2026-08-31）
+
+- 构建来源：`personal/main`，提交 `c9215cfcbcf3b059a989b76a75f53c088c8371c3`；使用仓库原生 `Dockerfile` 完整构建前端和 Go 后端。
+- 镜像标签：`new-api:v1.0.0-rc.29-20260831-01-gc9215cfc`；日期、当日序号和提交短 SHA 均按项目约定写入。
+- 本地镜像摘要：`sha256:89a537dbf93ad07b56939e8136c6ad208106e824e8a94fe52729d59569e75b49`，架构 `linux/arm64`，大小约 240 MB；当前仅存在于本机，未推送镜像仓库。
+- 构建过程的前端 Bun 构建、Go 依赖下载、Go 编译和最终镜像导出均成功；本次只生成镜像，未重建或重启正式 `new-api` 容器。
+- 下一步需在独立测试数据和端口上运行该候选镜像并回归；生产 Compose 的 `PASSWORD_LOGIN_ENCRYPTION_ENABLED=true`、备份和切换仍是后续独立门槛。
+
+### 生产候选隔离运行回归（2026-08-31）
+
+- 使用独立临时 PostgreSQL、Redis、Docker 网络、数据卷和宿主机端口 `3310` 启动 `new-api:v1.0.0-rc.29-20260831-01-gc9215cfc`；未复用 `new-api-dev` 或生产数据。
+- `/api/status` 返回 HTTP 200 且 `success=true`；因使用全新数据库，`setup=false` 属于预期的初始化向导状态。前端首页返回 200。
+- `/api/log/usage-summary`、`/api/log/self/usage-summary` 未认证均返回 401；`POST /v1/responses` 未认证返回 401，鉴权边界正常。
+- 启动日志仅出现预期的数据库迁移开始记录，未出现 fatal/panic/error；临时容器、网络、PostgreSQL 数据卷和端口已清理，候选镜像继续保留在本机。
