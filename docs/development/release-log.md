@@ -75,8 +75,8 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - Compose：`new-api-development/docker-compose.dev.yml`，项目名 `new-api-dev`。
 - 应用、PostgreSQL、Redis 使用独立容器、网络、数据卷和宿主机端口 `3000`；测试数据与生产数据分离。
 - 早期测试镜像标签：`new-api:dev-20260830-01-g8454082-dirty`，镜像 ID：`sha256:305bdcf874ad8274115e5baa09dd5d67e366175dd056d5b43cba564b4d027f66`；该镜像保留作历史追溯，Compose 别名不变。
-- 当前测试镜像标签：`new-api:dev-20260830-02-g8454082-dirty`（Compose 使用别名 `new-api-dev:local`）。
-- 当前镜像 ID：`sha256:b975be1195d842984c4db46ff3c40583bf594448cc7ae683ae4a7afd29ed8b48`，构建时间：2026-08-30 04:02:34（Asia/Shanghai），架构：`linux/arm64`。
+- 开发阶段测试镜像标签：`new-api:dev-20260830-02-g8454082-dirty`（镜像 ID：`sha256:b975be1195d842984c4db46ff3c40583bf594448cc7ae683ae4a7afd29ed8b48`，构建时间：2026-08-30 04:02:34（Asia/Shanghai），架构：`linux/arm64`）。
+- 生产发布后，`new-api-dev:local` 别名与正式候选 `new-api:v1.0.0-rc.27-20260830-01-g064a1078` 共用镜像 ID `sha256:c032fe63dc188342a390743f3752986fc1a93c68b89f24297b1c7705198aa932`；早期 `-02` 镜像仍保留作历史追溯。
 - 首次标准 `docker compose up --build` 因 Docker 构建内存不足，在 Go 编译 `ch-go/proto` 时被 OOM killer 终止；未替换旧测试容器。随后使用一次性串行编译（`GOMAXPROCS=1`、`GOFLAGS=-p=1`）构建当前测试镜像，未修改仓库 Dockerfile。
 
 ### 验证结果
@@ -87,12 +87,12 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 管理员端到端汇总（合成数据）：4 请求、37 输入 Token、16 输出 Token、53 总 Token、420 quota。
 - 管理员筛选、普通用户强制用户范围（忽略恶意 `username`）、时间范围校验和未认证 401：均符合预期。
 - 测试应用重建后渠道名称从缓存正确返回；测试 PostgreSQL healthy、Redis 正常、`/api/status` HTTP 200。
-- 当前测试容器 `new-api-dev` 正运行 `new-api-dev:local`，其镜像 ID 与上述 `-02` 候选一致；未触碰生产容器。
+- 隔离测试阶段的 `new-api-dev` 曾运行上述 `-02` 镜像；生产发布后的当前别名复用正式候选摘要，测试与生产镜像内容一致。
 - 生产 `new-api` 仍运行 `new-api:rc-8454082f930f`，镜像 ID `sha256:30b1f6b7c3688cda93fb171ae6f84c0197e2904b1b69abbce21259609fd26b3e`，状态 `running + healthy`；生产 Redis、PostgreSQL、Nginx 未触碰。
 
 ### 当前状态
 
-- 功能代码、测试、设计文档和 Postman 集合已形成提交 `064a107821e35ce0778ffa42230f477aab4fe27a`；本节记录的是隔离测试阶段的结果。
+- 功能代码、测试、设计文档和 Postman 集合在实现提交 `064a107821e35ce0778ffa42230f477aab4fe27a` 中完成；本节记录的是隔离测试阶段的结果。
 - 隔离测试完成后，生产发布按独立备份、评审和审批流程执行，结果见下方“日志用量聚合接口生产切换”章节。
 - Chrome 插件接入仍是后续工作；在接入前应保留旧分页作为兼容回退，并用同一时间窗口对比服务端聚合与插件旧算法。
 
@@ -101,7 +101,7 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 ### 发布对象
 
 - 生产源码 Worktree：`new-api-production`，分支 `personal/main`。
-- 功能分支 `feature/log-usage-summary` 已使用 fast-forward 合并，生产 HEAD 为 `064a107821e35ce0778ffa42230f477aab4fe27a`。
+- 功能分支 `feature/log-usage-summary` 已使用 fast-forward 合并；发布镜像构建源码为 `064a107821e35ce0778ffa42230f477aab4fe27a`，生产 Worktree 随后在文档收尾提交 `40bf77890c1b53d7f7901a3b1bdf002425b6a09e` 更新。
 - 正式候选镜像：`new-api:v1.0.0-rc.27-20260830-01-g064a1078`。
 - 镜像 ID：`sha256:c032fe63dc188342a390743f3752986fc1a93c68b89f24297b1c7705198aa932`，架构 `linux/arm64`。
 - 候选镜像与测试环境使用同一摘要；未在生产发布时重新构建。
@@ -129,3 +129,10 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 生产切换完成，未发生回滚；旧镜像 `new-api:rc-8454082f930f` 仍保留作为回滚对象。
 - Postman 集合：`new-api-development/postman/New-API-Custom-APIs.postman_collection.json`，应放入 `PONG API` 分组并使用本机安全环境变量填写后台 Token。
 - 下一阶段优先让 Chrome 插件接入聚合接口：默认携带有界时间范围，保留旧分页作为兼容回退，并在接入前用同一时间窗口对比服务端聚合与插件旧算法的请求数、输入/输出 Token 和 quota。
+
+## 2026-08-30：Git 收尾与个人远端同步
+
+- 文档收尾提交：`40bf77890c1b53d7f7901a3b1bdf002425b6a09e`（`docs: 完善日志聚合接口发布记录`）。
+- `feature/log-usage-summary` 已推送到 `myfork/feature/log-usage-summary`；`personal/main` 已推送到 `myfork/personal/main`；两个远端分支 SHA 均与本地一致。
+- 本次提交未包含生产 `docker-compose.yml`；根目录 Worktree 的私人 Compose 修改继续保留在本地部署控制目录。
+- fetch 后发现官方 `origin/main` 为 `918427d8`，相对已验证基线 `8454082f` 另有一个上游提交；本次未将其混入已验证发布，后续同步需单独评审和回归。
