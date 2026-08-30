@@ -115,5 +115,5 @@ HTTP 请求
 ## 状态更新（2026-08-31）
 
 - 用户已确认 Chrome 插件已完成聚合接口接入；本文前文“实际接入仍留待后续”的措辞是设计/隔离测试阶段的历史快照，不代表当前状态。
-- 官方主线已同步到 `2b6f1dfefbe217fed31fc0726717cc7de6958e8e`，开发 Worktree 当前通过合并提交 `5d3ec41d068a675ae60246637acfd295b61203af` 跟踪；生产 Worktree 尚未合入该同步。
-- 官方同步新增 PostgreSQL `prefill_groups` 唯一约束迁移逻辑。SQLite、MySQL、PostgreSQL 真实数据库矩阵及新库/升级库双启动幂等验证已完成；合入 `personal/main` 前剩余工作是最终差异复核和单独审批。
+- 官方主线已同步到 `2b6f1dfefbe217fed31fc0726717cc7de6958e8e`，开发 Worktree 通过合并提交 `5d3ec41d068a675ae60246637acfd295b61203af` 跟踪；同步与配置提交 `7d7f26ba1f4b79bd2921246f59b19ccb72205cbc` 已快进合入 `personal/main` 并推送到 `myfork`。生产容器仍未切换该同步。
+- 官方同步新增 PostgreSQL `prefill_groups` 唯一约束迁移逻辑。SQLite、MySQL、PostgreSQL 真实数据库矩阵及新库/升级库双启动幂等验证已完成；代码合入门槛已完成，后续生产切换仍需独立的备份、镜像和回滚流程。
