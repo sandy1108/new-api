@@ -94,7 +94,7 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 
 - 功能代码、测试、设计文档和 Postman 集合在实现提交 `064a107821e35ce0778ffa42230f477aab4fe27a` 中完成；本节记录的是隔离测试阶段的结果。
 - 隔离测试完成后，生产发布按独立备份、评审和审批流程执行，结果见下方“日志用量聚合接口生产切换”章节。
-- Chrome 插件接入仍是后续工作；在接入前应保留旧分页作为兼容回退，并用同一时间窗口对比服务端聚合与插件旧算法。
+- Chrome 插件接入仍是后续工作（2026-08-30 隔离测试阶段快照）；在接入前应保留旧分页作为兼容回退，并用同一时间窗口对比服务端聚合与插件旧算法。当前接入状态以本日志最新章节为准。
 
 ## 2026-08-30：日志用量聚合接口生产切换
 
@@ -136,3 +136,60 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - `feature/log-usage-summary` 已推送到 `myfork/feature/log-usage-summary`；`personal/main` 已推送到 `myfork/personal/main`；两个远端分支 SHA 均与本地一致。
 - 本次提交未包含生产 `docker-compose.yml`；根目录 Worktree 的私人 Compose 修改继续保留在本地部署控制目录。
 - fetch 后发现官方 `origin/main` 为 `918427d8`，相对已验证基线 `8454082f` 另有一个上游提交；本次未将其混入已验证发布，后续同步需单独评审和回归。
+
+## 2026-08-31：同步官方主线与回归验证
+
+### 同步范围
+
+- 官方目标：`origin/main` → `2b6f1dfefbe217fed31fc0726717cc7de6958e8e`，提交主题为 `fix(model): drop leftover prefill_groups unique constraints before AutoMigrate`。
+- 开发 Worktree：`new-api-development`，分支 `upgrade/upstream-main-20260831`。
+- 同步方式：以 `personal/main`（`5eceb0b7575476225fb24d4df785cd65bc4a9eb3`）为父提交合并官方主线，合并提交为 `5d3ec41d068a675ae60246637acfd295b61203af`。
+- 本次同步实际引入官方主线连续 13 个提交（从 `918427d8` 到 `2b6f1dfe`），不是只有最后一个迁移提交；因此合入前按认证、任务插件、数据库、Relay 和前端模块完成整段回归审查。
+- 代码快照：`backup/pre-upgrade-20260831-01` 仍保留在同步前的 `5eceb0b7`。
+- 本轮只操作开发 Worktree；生产部署控制目录、生产 Compose、生产容器和生产数据均未修改或重启。
+
+### 官方变更与风险边界
+
+- 新增 `model/prefill_group_migration.go` 及测试：PostgreSQL 启动迁移前检查 `prefill_groups.name` 的遗留全局唯一约束，已知旧对象迁移为 `deleted_at IS NULL` 的部分唯一索引；遇到未知冲突对象时报告错误，不自动删除。
+- `model/main.go` 不再使用旧的并行 `migrateDBFast` 路径，数据库迁移顺序和失败行为因此需要重点观察。
+- 官方同时新增数据库变更验证要求。该提交涉及迁移/约束行为，在完成真实 SQLite、MySQL、PostgreSQL 矩阵以及新库/升级库的幂等性验证前，不把本分支标记为“数据库兼容已完成”或直接提升生产。
+
+### 开发镜像与配置
+
+- 测试镜像：`new-api:dev-20260831-01-g5d3ec41`。
+- 镜像 ID：`sha256:f7855c8410afbdcdb51da6b0e141e2b3072dd2ad541f7c1d4c053e23d8d4111d`，架构 `linux/arm64`。
+- 测试 Compose 显式设置 `PASSWORD_LOGIN_ENCRYPTION_ENABLED=true`；该设置不能依赖官方默认值。
+- 测试容器：`new-api-dev`、`new-api-dev-pg`、`new-api-dev-redis`；数据、网络、卷和宿主机端口与生产隔离。
+
+### 回归结果
+
+- Go 根模块 `GOWORK=off go test ./...`：通过。
+- Go 静态检查 `GOWORK=off go vet ./...`：通过；`relaykit` 独立模块测试：通过。
+- 前端 Bun `typecheck` 与 `build`：通过。
+- Node 24 等价 Vitest：59/59 测试文件、406/406 测试通过。
+- Bun Vitest：51/59 文件、370/378 测试通过；剩余 8 项均在测试运行时导入 `zod` 时出现 `z.object`/`z.number` 未定义，未发现业务断言失败，未修改生产源码迁就该运行时差异。
+- HTTP 回归：`/api/status`、加密登录公钥、加密登录/会话、JWT 个人接口、管理员聚合、普通用户越权防护、管理员用户/模型接口均通过；未认证聚合接口和 `/v1/responses` 正确返回 401。
+- 测试数据库无活动残留会话；生产运行镜像仍为 `new-api:v1.0.0-rc.27-20260830-01-g064a1078`，摘要 `sha256:c032fe63dc188342a390743f3752986fc1a93c68b89f24297b1c7705198aa932`，状态 `running + healthy`。
+
+### 数据库迁移矩阵（2026-08-31）
+
+- 验证使用隔离 Docker 网络、临时数据库容器和临时数据卷；测试完成后已清理，未复用或修改 `new-api-dev`、生产数据库和生产 Redis。
+- 实际版本：SQLite `3.51.0`、MySQL `8.0.46`、PostgreSQL `15.19`；Go 测试使用一次性 `golang:1.26.1-alpine` 工具容器（宿主机未安装 `go`，未改动用户 PATH 或工具链）。
+- 单元/集成迁移命令：
+  `TEST_MYSQL_DSN=... TEST_POSTGRES_DSN=... GOWORK=off go test -count=1 -v ./model -run '^TestMigratePrefillGroupUniqueness(SQLite|MySQL|PostgreSQL)$'`：三项均通过；随后 `GOWORK=off go test -count=1 -timeout=10m ./model`：通过。
+- 新库启动：SQLite、MySQL、PostgreSQL 各启动两次，`/api/status` 均返回 `success=true`，第二次未重复创建索引或报迁移错误。
+- 升级库启动：使用当前正式候选镜像先建立代表性旧库并写入既有数据，再使用同步后的开发镜像各启动两次；SQLite/MySQL 数据行保持，PostgreSQL 遗留全局唯一索引 `idx_prefill_groups_name` 被转换为 `deleted_at IS NULL` 的 `uk_prefill_name`。
+- PostgreSQL 迁移后行为：活动名称重复仍被唯一索引拒绝；软删除后可重新使用同名；未知冲突对象的保护行为由迁移测试覆盖。
+- 生产复核：`new-api` 仍为 `new-api:v1.0.0-rc.27-20260830-01-g064a1078`、摘要 `sha256:c032fe63dc188342a390743f3752986fc1a93c68b89f24297b1c7705198aa932`，状态 `running + healthy`；生产 PostgreSQL/Redis 容器 ID 未变化。
+
+### 当前结论与后续门槛
+
+- 官方主线已在隔离开发 Worktree 同步并完成应用层回归；未合入 `personal/main`，未推送，未发布生产。
+- 项目前文中“Chrome 插件尚未接入”的表述属于 2026-08-30 的阶段快照；截至本记录，用户已确认 Chrome 插件接入完成。后续不再把插件接入作为本分支的待办；Web 自定义统计页仍是可选后续工作。
+- 三数据库迁移矩阵、新库/升级库双启动幂等、既有数据和唯一性约束验证均已完成；当前剩余门槛是对差异进行最终评审，并由用户单独批准是否将 `upgrade/upstream-main-20260831` 合入 `personal/main`。本轮仍未合入、未推送、未发布生产。
+
+### 本轮补充验证（2026-08-31）
+
+- 开发 Worktree 的 `web/dist` 原本为空；按仓库 CI 和 `Dockerfile.dev` 的既定做法临时创建最小 `index.html` 后，`GOWORK=off go test -count=1 -timeout=15m ./...`、`GOWORK=off go vet ./...`、`relaykit` 独立测试和 `GOWORK=off go build ./...` 均通过。占位文件及一次性 Go 测试缓存卷已清理，未进入 Git。
+- 开发容器 `new-api-dev` 使用镜像 `new-api:dev-20260831-01-g5d3ec41`，`/api/status` 返回 `success=true`；两个聚合接口未认证均返回 401，最近 30 分钟日志无 fatal/panic/migration/error。
+- 开发 Compose 已固定顶层项目名 `new-api-dev`，与现有容器标签和数据卷命名一致；因此后续可直接使用 `docker compose -f docker-compose.dev.yml ...` 管理当前开发栈，无需额外追加 `-p`。该配置变更只影响 Compose 项目标识，不会自动重启容器或触碰生产。

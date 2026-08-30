@@ -14,12 +14,14 @@
 # Reset data:
 #   docker compose -f docker-compose.dev.yml down -v
 
+name: new-api-dev
+
 services:
   new-api:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    image: new-api-dev:local
+    image: new-api:dev-20260831-01-g5d3ec41
     container_name: new-api-dev
     restart: unless-stopped
     ports:
@@ -31,6 +33,8 @@ services:
       - REDIS_CONN_STRING=redis://redis
       - TZ=Asia/Shanghai
       - BATCH_UPDATE_ENABLED=true
+      # 与生产发布规则一致：官方主线默认关闭，测试升级必须显式开启。
+      - PASSWORD_LOGIN_ENCRYPTION_ENABLED=true
       # Local HTTP dev mode: keep Secure=false and leave TRUSTED_URL unset. This disables the refresh/logout OriginGuard so the :5173 -> :3000 dev proxy works.
       - SESSION_COOKIE_SECURE=false
       # For HTTPS only: set Secure=true and list every exact trusted HTTPS browser Origin. This does not configure relay CORS.
