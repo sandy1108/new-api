@@ -8,6 +8,15 @@
 
 **Tech Stack:** React 19、TypeScript、TanStack Router、TanStack Query v5、Axios 共享 `api` 实例、Zustand `useAuthStore`、i18next、Tailwind/Base UI、Vitest、React Testing Library、Bun、Rsbuild。
 
+## 当前实施状态（2026-08-31）
+
+- Tasks 1–9 的源码、测试和接线已完成，并已进入 `upgrade/upstream-main-20260831` 开发分支；Task 10 的 Node 等价测试、类型、定向 lint、定向格式检查和 Dockerfile 构建均已验证。
+- Task 11 的隔离 HTTP/UI 回归已完成：管理员全部/仅自己、七个时间范围、刷新、空状态、旧日志页和请求路径均有真实浏览器证据；临时容器、网络和卷已清理。
+- 宿主机 `Rsbuild`/`build:check` 仍受当前依赖目录缺少 `@lobehub/ui`、`antd` 阻塞；未安装依赖或修改锁文件。全仓 lint 的官方既有问题也未被带入本功能修复。
+- Task 12 的文档内容已更新并完成扫描复核；最后的 commit、合并和推送属于独立 Git 发布动作，已获用户确认并按分支规范执行。
+
+以下原始任务步骤保留作为实施设计记录；当前事实状态以本节和 `docs/development/release-log.md` 最新章节为准。
+
 ---
 
 ## 范围和固定边界
@@ -558,17 +567,17 @@ web/src/routeTree.gen.ts                              # 生成产物，不手工
 
   明确确认：服务端聚合接口一次请求覆盖大范围；普通用户只能 self；管理员 all/self 路径正确；刷新不会回退分页；现有日志页未改；新增代码集中在 feature 目录；生产数据和 Compose 未改变。若任一项没有最新命令输出或测试证据，不得标记完成。
 
-- [ ] **Step 3: 本地提交并停止在发布门槛前**
+- [ ] **Step 3: 本地提交并停止在发布门槛前（实施阶段记录）**
 
-  使用中文类型前缀提交最后的文档/验证变更，例如：`docs: 记录 Web 用量统计开发回归`。本计划不包含合并到 `personal/main`、推送 `myfork`、构建正式候选镜像或重建生产容器；这些动作必须另开发布任务，重新执行备份、镜像摘要、回滚和用户确认门槛。
+  使用中文类型前缀提交最后的文档/验证变更，例如：`docs: 记录 Web 用量统计开发回归`。实施阶段原计划在此停止；本轮经用户确认后，Git 合并到 `personal/main` 和推送 `myfork` 作为独立收尾任务执行。构建正式候选镜像或重建生产容器仍需另开发布任务，重新执行备份、镜像摘要、回滚和用户确认门槛。
 
 ---
 
 ## 计划完成后的验证清单
 
-- [ ] `web/src/features/usage-summary/__tests__/` 新增测试全部通过。
-- [ ] `bun run test`、`bun run typecheck`、`bun run lint`、`bun run format:check`、`bun run build:check` 均有最新成功输出。
-- [ ] 开发容器 `/api/status`、两个接口的未认证 401、登录 Web 页面和每个范围的一次请求均有回归证据。
-- [ ] 生产镜像 digest、容器状态、Redis/PostgreSQL、私人 Compose 与开发前一致。
-- [ ] `git diff --check` 通过，差异不含凭据和生产运行态文件。
-- [ ] `docs/development/release-log.md` 已记录事实；未获得另行授权前不合并、不推送、不切换生产。
+- [x] `web/src/features/usage-summary/__tests__/` 新增测试全部通过。
+- [ ] `bun run lint`、宿主机 `build:check` 仍受官方既有问题/当前依赖目录缺失阻塞；Node 等价类型、定向 lint、格式检查和 Dockerfile 构建已通过。
+- [x] 开发容器 `/api/status`、两个接口的未认证 401、登录 Web 页面和七个范围的一次请求均有回归证据。
+- [x] 生产镜像 digest、容器状态、Redis/PostgreSQL、私人 Compose 与本轮开发前保持未变。
+- [x] `git diff --check` 通过，差异不含凭据和生产运行态文件（最终提交前需再次复核）。
+- [x] `docs/development/release-log.md` 已记录本轮事实；commit、合并和推送按用户确认执行，生产切换仍保持独立审批。

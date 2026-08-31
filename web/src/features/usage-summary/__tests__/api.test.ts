@@ -56,7 +56,9 @@ describe('usage summary API', () => {
       data: successResponse,
     } as never)
 
-    await expect(getUsageSummary({ scope: 'all', range })).resolves.toEqual(data)
+    await expect(getUsageSummary({ scope: 'all', range })).resolves.toEqual(
+      data
+    )
 
     expect(get).toHaveBeenCalledOnce()
     expect(get).toHaveBeenCalledWith('/api/log/usage-summary', {

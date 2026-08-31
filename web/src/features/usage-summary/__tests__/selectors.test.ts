@@ -16,8 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 import { describe, expect, test } from 'vitest'
 
-import type { UsageSummaryItem } from '../types'
 import { aggregateUsageItems, selectDefaultToken } from '../lib/selectors'
+import type { UsageSummaryItem } from '../types'
 
 function makeItem(overrides: Partial<UsageSummaryItem>): UsageSummaryItem {
   return {
@@ -40,8 +40,18 @@ function makeItem(overrides: Partial<UsageSummaryItem>): UsageSummaryItem {
 describe('usage summary selectors', () => {
   test('sums server aggregation rows without expanding request counts', () => {
     const view = aggregateUsageItems([
-      makeItem({ requests: 3, input_tokens: 100, output_tokens: 20, quota: 500 }),
-      makeItem({ requests: 2, input_tokens: 30, output_tokens: 10, quota: 100 }),
+      makeItem({
+        requests: 3,
+        input_tokens: 100,
+        output_tokens: 20,
+        quota: 500,
+      }),
+      makeItem({
+        requests: 2,
+        input_tokens: 30,
+        output_tokens: 10,
+        quota: 100,
+      }),
     ])
 
     expect(view.totals).toEqual({
@@ -123,10 +133,9 @@ describe('usage summary selectors', () => {
     ])
 
     expect(view.tokens[0].id).toBe(11)
-    expect(view.tokens[1].channels[0].models.map((model) => model.name)).toEqual([
-      'large',
-      'small',
-    ])
+    expect(
+      view.tokens[1].channels[0].models.map((model) => model.name)
+    ).toEqual(['large', 'small'])
   })
 
   test('uses explicit fallback labels for missing names', () => {

@@ -96,10 +96,18 @@ export function TokenDetail(props: TokenDetailProps) {
                 <TableHeader>
                   <TableRow className='bg-muted/40 hover:bg-muted/40'>
                     <TableHead>{t('Model')}</TableHead>
-                    <TableHead className='text-right'>{t('Requests')}</TableHead>
-                    <TableHead className='text-right'>{t('Input Tokens')}</TableHead>
-                    <TableHead className='text-right'>{t('Output Tokens')}</TableHead>
-                    <TableHead className='text-right'>{t('Total Tokens')}</TableHead>
+                    <TableHead className='text-right'>
+                      {t('Requests')}
+                    </TableHead>
+                    <TableHead className='text-right'>
+                      {t('Input Tokens')}
+                    </TableHead>
+                    <TableHead className='text-right'>
+                      {t('Output Tokens')}
+                    </TableHead>
+                    <TableHead className='text-right'>
+                      {t('Total Tokens')}
+                    </TableHead>
                     <TableHead className='text-right'>{t('Quota')}</TableHead>
                   </TableRow>
                 </TableHeader>

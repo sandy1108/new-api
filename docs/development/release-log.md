@@ -233,3 +233,50 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 已为历史首次本地镜像切换包补齐元数据并登记为 `completed`；生产候选 `rc.29` 切换包补齐元数据和待执行反馈，保持 `pending`，没有伪造执行结果。
 - Codex 负责创建和填写 `pending` 发包材料；豆包负责执行、更新状态并填写同目录反馈。最终回复必须同时提供可点击和纯文本的绝对路径。
 - 本轮只读复核发现生产 `new-api` 已运行候选 `rc.29` 镜像且为 `healthy`，但未观察到执行 Agent 回填该包；因此 `new-api-pre-switch-20260831-rc29` 仍按元数据保持 `pending`，不能仅凭容器状态推断完整验收已完成。
+
+## 2026-08-31：Web 控制台用量统计页开发与隔离回归
+
+### 开发范围
+
+- 开发 Worktree：`new-api-development`。
+- 分支：`upgrade/upstream-main-20260831`，基线为已同步官方主线的个人分支；开发阶段验证 HEAD（提交前快照）：`812702ba`。
+- 新增独立前端功能模块 `web/src/features/usage-summary/`，通过现有认证 API 客户端调用服务端聚合接口，不复制 Chrome 插件的 Cookie、分页或外部访问逻辑。
+- 新增认证路由 `/usage-summary` 和侧边栏入口；普通用户固定使用 `GET /api/log/self/usage-summary`，管理员可在“全部/仅自己”之间切换并使用有界时间范围。
+- 保留原有 `/usage-logs/common` 分页页面和服务端分页上限；本阶段未修改生产 Compose、生产容器、生产数据或 Redis/PostgreSQL。
+
+### 验证结果
+
+- `npx vitest run`：65 个测试文件、434 个测试全部通过（Node.js 24.18.0 运行时）。
+- `npx tsgo -b`：通过。
+- `npx oxlint -c .oxlintrc.json <本次涉及文件>`：通过；全仓 Lint 仍有官方既有文件的错误，未将无关文件纳入本次修复。
+- 本功能涉及文件的 `oxfmt --check`：通过；全量 `npm run format:check` 仍列出 25 个官方既有文件的格式问题，未修改无关文件。
+- `git diff --check`：通过。
+- 开发 Compose `docker compose -f docker-compose.dev.yml config`：通过；项目名 `new-api-dev`，应用端口 `3000`、开发数据卷和生产隔离。
+- 开发 API：`/api/status` HTTP 200 且 `success=true`；两个聚合接口无 Token 均返回 HTTP 401；开发容器、PostgreSQL、Redis 均保持运行。
+
+### 当前构建边界（历史阻塞记录）
+
+- 完整 `rsbuild build` 和 `npm run dev` 在入口解析阶段被当前开发环境缺失的 `@lobehub/ui`、`antd` peer 依赖阻塞；这些依赖虽出现在 `bun.lock`，但不在当前 `web/package.json`/`node_modules` 可用集合中。本阶段未擅自安装依赖或修改锁文件。
+- 该宿主机阻塞不影响仓库原生 Dockerfile 的完整镜像构建；页面级回归使用已构建的隔离镜像和临时端口完成，具体证据见下方“浏览器页面回归”。
+
+### 结果
+
+- Web 用量统计页的源码、路由、导航、i18n、测试、设计文档和实施计划已在本开发分支完成；生产切换仍需单独审批，Git 发布动作按用户确认执行。
+
+### 浏览器页面回归与临时资源清理（2026-08-31）
+
+- 回归镜像：`new-api:dev-20260831-02-g812702ba`，摘要 `sha256:1d92a9df44e1a752908cf2fd7790b970d55727d6a2e0dd4056c4ef924ef5c1c0`。
+- 在临时隔离栈（应用 `new-api-web-e2e-app`、端口 `3311`、独立 PostgreSQL/Redis/网络/数据卷）中，管理员登录后打开 `/usage-summary` 成功，页面标题、筛选控件、空状态和刷新控件均正常。
+- 默认“全部”请求 `/api/log/usage-summary`；切换“仅自己”请求 `/api/log/self/usage-summary`；今天、昨天、本周、上周、本月、上月、本季度七个范围均各触发一次对应聚合请求；刷新仅再次请求当前范围。九次聚合响应均为 HTTP 200，页面交互期间未调用旧 `/api/log/` 分页接口。
+- `/usage-logs/common` 仍可打开，观察到原有 `/api/log/stat` 和 `/api/log/` 请求，证明旧日志页未被新页面替换。
+- 回归结束后已删除临时应用、PostgreSQL、Redis 容器及其独立网络和数据卷；候选镜像保留用于后续复核。生产 `new-api`、Redis、PostgreSQL、Compose 和数据未触碰。
+
+### 当前阶段结论
+
+- Web 控制台 Token 用量页面已完成源码、自动化测试和隔离浏览器回归；设计文档和本发布日志已与实际进度对齐。
+- 发布前差异已完成审阅；用户已确认 Git 发布动作，commit、合并和推送按本项目分支规范执行。Git 发布不等同于生产切换，生产仍需单独审批。
+
+### 交接包状态复核（2026-08-31）
+
+- 重新执行 `python3 scripts/test_scan_handoffs.py` 和 `python3 scripts/scan-handoffs.py`：共发现 3 个交接包，`completed=3`、`pending=0`、`invalid=0`；生产候选 `rc.29` 交接包已由执行 Agent 回填完成。
+- 该扫描结果只代表交接包元数据和反馈文件状态；生产运行态仍以容器和 Compose 的独立只读检查为准。

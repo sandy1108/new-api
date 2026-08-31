@@ -19,8 +19,8 @@ import { describe, expect, test, vi } from 'vitest'
 
 import { TokenDetail } from '../components/token-detail'
 import { TokenTable } from '../components/token-table'
-import { UsageSummary } from '../index'
 import { useUsageSummary } from '../hooks/use-usage-summary'
+import { UsageSummary } from '../index'
 import type { UsageTokenBucket } from '../types'
 
 vi.mock('../hooks/use-usage-summary', () => ({
@@ -29,7 +29,9 @@ vi.mock('../hooks/use-usage-summary', () => ({
 
 const mockedUseUsageSummary = vi.mocked(useUsageSummary)
 
-function makeToken(overrides: Partial<UsageTokenBucket> = {}): UsageTokenBucket {
+function makeToken(
+  overrides: Partial<UsageTokenBucket> = {}
+): UsageTokenBucket {
   return {
     id: 10,
     name: 'Codex token',
@@ -106,7 +108,9 @@ describe('usage summary hierarchy', () => {
     expect(screen.getAllByText('150')).toHaveLength(2)
 
     rerender(<TokenDetail token={makeToken({ channels: [] })} />)
-    expect(screen.getByText('No channel usage for this token.')).toBeInTheDocument()
+    expect(
+      screen.getByText('No channel usage for this token.')
+    ).toBeInTheDocument()
   })
 })
 
@@ -134,9 +138,7 @@ const summaryData = {
   ],
 }
 
-function mockSummaryQuery(
-  overrides: Record<string, unknown> = {}
-): void {
+function mockSummaryQuery(overrides: Record<string, unknown> = {}): void {
   mockedUseUsageSummary.mockReturnValue({
     data: undefined,
     isLoading: false,
@@ -185,7 +187,11 @@ describe('usage summary page states', () => {
   })
 
   test('does not render the administrator scope switch for a regular user', () => {
-    mockSummaryQuery({ data: summaryData, scope: 'self', canManageScope: false })
+    mockSummaryQuery({
+      data: summaryData,
+      scope: 'self',
+      canManageScope: false,
+    })
     render(<UsageSummary />)
 
     expect(screen.queryByRole('tab', { name: 'All' })).toBeNull()

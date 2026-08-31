@@ -55,16 +55,16 @@ function isUsageSummaryItem(value: unknown): value is UsageSummaryItem {
     return false
   }
 
-  const requiredStringFields = [
-    'username',
-    'token_name',
-    'model_name',
-  ]
-  if (!requiredStringFields.every((field) => typeof value[field] === 'string')) {
+  const requiredStringFields = ['username', 'token_name', 'model_name']
+  if (
+    !requiredStringFields.every((field) => typeof value[field] === 'string')
+  ) {
     return false
   }
 
-  return value.channel_name === undefined || typeof value.channel_name === 'string'
+  return (
+    value.channel_name === undefined || typeof value.channel_name === 'string'
+  )
 }
 
 function isUsageSummaryData(value: unknown): value is UsageSummaryData {

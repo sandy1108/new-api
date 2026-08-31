@@ -17,20 +17,25 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { SectionPageLayout } from '@/components/layout'
 import { ErrorState } from '@/components/error-state'
+import { SectionPageLayout } from '@/components/layout'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 
-import {
-  DEFAULT_USAGE_SUMMARY_RANGE,
-  DEFAULT_USAGE_SUMMARY_SCOPE,
-} from './constants'
 import { UsageSummaryFilters } from './components/filters'
 import { UsageSummaryCards } from './components/summary-cards'
 import { TokenDetail } from './components/token-detail'
 import { TokenTable } from './components/token-table'
+import {
+  DEFAULT_USAGE_SUMMARY_RANGE,
+  DEFAULT_USAGE_SUMMARY_SCOPE,
+} from './constants'
 import { useUsageSummary } from './hooks/use-usage-summary'
 import { createUsageSummaryRange } from './lib/date-range'
 import { aggregateUsageItems, selectDefaultToken } from './lib/selectors'
@@ -101,10 +106,7 @@ export function UsageSummary() {
     () => (query.data ? aggregateUsageItems(query.data.items) : null),
     [query.data]
   )
-  const selectedToken = selectDefaultToken(
-    view?.tokens ?? [],
-    selectedTokenKey
-  )
+  const selectedToken = selectDefaultToken(view?.tokens ?? [], selectedTokenKey)
 
   const handleRangeChange = (nextRangeId: UsageSummaryRangeId) => {
     setRangeId(nextRangeId)
