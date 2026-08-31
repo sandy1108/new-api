@@ -33,6 +33,8 @@ web/src/features/usage-summary/
 ├── api.ts
 ├── types.ts
 ├── constants.ts
+├── hooks/
+│   └── use-usage-summary.ts
 ├── components/
 │   ├── filters.tsx
 │   ├── summary-cards.tsx
@@ -45,6 +47,8 @@ web/src/features/usage-summary/
 └── __tests__/
     ├── api.test.ts
     ├── date-range.test.ts
+    ├── format.test.ts
+    ├── query.test.tsx
     ├── selectors.test.ts
     └── usage-summary.test.tsx
 
@@ -320,6 +324,7 @@ web/src/routeTree.gen.ts                              # 生成产物，不手工
 
 - Create: `web/src/features/usage-summary/hooks/use-usage-summary.ts`
 - Modify: `web/src/features/usage-summary/constants.ts`
+- Test: `web/src/features/usage-summary/__tests__/query.test.tsx`
 
 - [ ] **Step 1: 定义查询键和范围权限策略**
 
