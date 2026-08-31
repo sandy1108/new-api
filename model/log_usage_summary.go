@@ -2,9 +2,11 @@ package model
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 
 	"github.com/QuantumNous/new-api/common"
+	"gorm.io/gorm"
 )
 
 // UsageSummaryFilters 定义日志用量聚合的筛选条件。
@@ -13,6 +15,7 @@ type UsageSummaryFilters struct {
 	UserID         int
 	StartTimestamp int64
 	EndTimestamp   int64
+	IncludeTrend   bool
 	ModelName      string
 	Username       string
 	TokenName      string
@@ -37,14 +40,26 @@ type UsageSummaryItem struct {
 	Quota        int64  `json:"quota" gorm:"column:quota"`
 }
 
+// UsageSummaryTrendPoint 是按 Unix 日桶聚合的用量趋势点。
+// 桶起点使用秒级时间戳，前端负责按当前控制台时区格式化显示。
+type UsageSummaryTrendPoint struct {
+	Timestamp    int64 `json:"timestamp" gorm:"column:bucket"`
+	Requests     int64 `json:"requests" gorm:"column:requests"`
+	InputTokens  int64 `json:"input_tokens" gorm:"column:input_tokens"`
+	OutputTokens int64 `json:"output_tokens" gorm:"column:output_tokens"`
+	TotalTokens  int64 `json:"total_tokens" gorm:"-"`
+	Quota        int64 `json:"quota" gorm:"column:quota"`
+}
+
 // UsageSummary 是 usage-summary 接口返回的总计和明细。
 type UsageSummary struct {
-	TotalRequests     int64              `json:"total_requests"`
-	TotalInputTokens  int64              `json:"total_input_tokens"`
-	TotalOutputTokens int64              `json:"total_output_tokens"`
-	TotalTokens       int64              `json:"total_tokens"`
-	TotalQuota        int64              `json:"total_quota"`
-	Items             []UsageSummaryItem `json:"items"`
+	TotalRequests     int64                    `json:"total_requests"`
+	TotalInputTokens  int64                    `json:"total_input_tokens"`
+	TotalOutputTokens int64                    `json:"total_output_tokens"`
+	TotalTokens       int64                    `json:"total_tokens"`
+	TotalQuota        int64                    `json:"total_quota"`
+	Items             []UsageSummaryItem       `json:"items"`
+	Trend             []UsageSummaryTrendPoint `json:"trend,omitempty"`
 }
 
 var errUsageSummaryQuery = errors.New("查询统计数据失败")
@@ -68,37 +83,9 @@ func GetUsageSummary(filters UsageSummaryFilters) (UsageSummary, error) {
 		COALESCE(SUM(quota), 0) AS quota`).
 		Where("type = ?", LogTypeConsume)
 
-	if filters.UserID != 0 {
-		tx = tx.Where("user_id = ?", filters.UserID)
-	}
-	if filters.Username != "" {
-		var err error
-		tx, err = applyExplicitLogTextFilter(tx, "username", filters.Username)
-		if err != nil {
-			return summary, err
-		}
-	}
-	if filters.TokenName != "" {
-		tx = tx.Where("token_name = ?", filters.TokenName)
-	}
-	if filters.ModelName != "" {
-		var err error
-		tx, err = applyExplicitLogTextFilter(tx, "model_name", filters.ModelName)
-		if err != nil {
-			return summary, err
-		}
-	}
-	if filters.StartTimestamp != 0 {
-		tx = tx.Where("created_at >= ?", filters.StartTimestamp)
-	}
-	if filters.EndTimestamp != 0 {
-		tx = tx.Where("created_at <= ?", filters.EndTimestamp)
-	}
-	if filters.ChannelID != 0 {
-		tx = tx.Where("channel_id = ?", filters.ChannelID)
-	}
-	if filters.Group != "" {
-		tx = tx.Where(logGroupCol+" = ?", filters.Group)
+	var err error
+	if tx, err = applyUsageSummaryFilters(tx, filters); err != nil {
+		return summary, err
 	}
 
 	if err := tx.Group("user_id, username, token_id, token_name, channel_id, model_name").Scan(&items).Error; err != nil {
@@ -122,7 +109,90 @@ func GetUsageSummary(filters UsageSummaryFilters) (UsageSummary, error) {
 		return usageSummaryItemLess(items[i], items[j])
 	})
 	summary.Items = items
+
+	if filters.IncludeTrend {
+		trend, err := getUsageSummaryTrend(filters)
+		if err != nil {
+			return summary, err
+		}
+		summary.Trend = trend
+	}
 	return summary, nil
+}
+
+// applyUsageSummaryFilters 保证明细查询和趋势查询使用完全相同的权限/筛选条件。
+func applyUsageSummaryFilters(tx *gorm.DB, filters UsageSummaryFilters) (*gorm.DB, error) {
+	if filters.UserID != 0 {
+		tx = tx.Where("user_id = ?", filters.UserID)
+	}
+	if filters.Username != "" {
+		var err error
+		tx, err = applyExplicitLogTextFilter(tx, "username", filters.Username)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if filters.TokenName != "" {
+		tx = tx.Where("token_name = ?", filters.TokenName)
+	}
+	if filters.ModelName != "" {
+		var err error
+		tx, err = applyExplicitLogTextFilter(tx, "model_name", filters.ModelName)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if filters.StartTimestamp != 0 {
+		tx = tx.Where("created_at >= ?", filters.StartTimestamp)
+	}
+	if filters.EndTimestamp != 0 {
+		tx = tx.Where("created_at <= ?", filters.EndTimestamp)
+	}
+	if filters.ChannelID != 0 {
+		tx = tx.Where("channel_id = ?", filters.ChannelID)
+	}
+	if filters.Group != "" {
+		tx = tx.Where(logGroupCol+" = ?", filters.Group)
+	}
+	return tx, nil
+}
+
+// usageSummaryDayBucketExpr 仅聚合日志表的日桶，不把原始日志加载到应用层。
+// SQLite/PostgreSQL 可直接使用整数除法；MySQL 和 ClickHouse 分别使用其明确的整除表达式。
+func usageSummaryDayBucketExpr() string {
+	switch common.LogDatabaseType() {
+	case common.DatabaseTypeMySQL:
+		return "FLOOR(created_at / 86400) * 86400"
+	case common.DatabaseTypeClickHouse:
+		return "intDiv(created_at, 86400) * 86400"
+	default:
+		return "(created_at / 86400) * 86400"
+	}
+}
+
+func getUsageSummaryTrend(filters UsageSummaryFilters) ([]UsageSummaryTrendPoint, error) {
+	bucketExpr := usageSummaryDayBucketExpr()
+	rows := make([]UsageSummaryTrendPoint, 0)
+	tx := LOG_DB.Table("logs").Select(fmt.Sprintf(`
+		%s AS bucket,
+		COUNT(*) AS requests,
+		COALESCE(SUM(prompt_tokens), 0) AS input_tokens,
+		COALESCE(SUM(completion_tokens), 0) AS output_tokens,
+		COALESCE(SUM(quota), 0) AS quota`, bucketExpr)).
+		Where("type = ?", LogTypeConsume)
+
+	var err error
+	if tx, err = applyUsageSummaryFilters(tx, filters); err != nil {
+		return nil, err
+	}
+	if err := tx.Group(bucketExpr).Order("bucket ASC").Scan(&rows).Error; err != nil {
+		common.SysError("failed to query usage summary trend: " + err.Error())
+		return nil, errUsageSummaryQuery
+	}
+	for i := range rows {
+		rows[i].TotalTokens = rows[i].InputTokens + rows[i].OutputTokens
+	}
+	return rows, nil
 }
 
 func usageSummaryItemLess(left, right UsageSummaryItem) bool {

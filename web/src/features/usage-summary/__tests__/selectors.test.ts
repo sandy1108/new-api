@@ -16,7 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 import { describe, expect, test } from 'vitest'
 
-import { aggregateUsageItems, selectDefaultToken } from '../lib/selectors'
+import {
+  aggregateUsageItems,
+  selectDefaultChannel,
+  selectDefaultToken,
+} from '../lib/selectors'
 import type { UsageSummaryItem } from '../types'
 
 function makeItem(overrides: Partial<UsageSummaryItem>): UsageSummaryItem {
@@ -178,5 +182,20 @@ describe('usage summary selectors', () => {
 
     expect(selectDefaultToken(view.tokens, view.tokens[1].key)?.id).toBe(10)
     expect(selectDefaultToken(view.tokens, 'missing')?.id).toBe(11)
+  })
+
+  test('keeps a selected channel and falls back to the highest-usage channel', () => {
+    const token = makeItem({ token_id: 10 })
+    const view = aggregateUsageItems([
+      token,
+      makeItem({ channel_id: 3, channel_name: 'Backup', input_tokens: 200 }),
+    ])
+
+    expect(selectDefaultChannel(view.tokens[0])?.name).toBe('Backup')
+    expect(
+      selectDefaultChannel(view.tokens[0], view.tokens[0].channels[1].key)?.name
+    ).toBe('Official')
+    expect(selectDefaultChannel(view.tokens[0], 'missing')?.name).toBe('Backup')
+    expect(selectDefaultChannel(null)).toBeNull()
   })
 })

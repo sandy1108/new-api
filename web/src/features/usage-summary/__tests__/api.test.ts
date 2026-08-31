@@ -65,6 +65,7 @@ describe('usage summary API', () => {
       params: {
         start_timestamp: 100,
         end_timestamp: 200,
+        include_trend: true,
       },
     })
   })
@@ -80,6 +81,7 @@ describe('usage summary API', () => {
       params: {
         start_timestamp: 100,
         end_timestamp: 200,
+        include_trend: true,
       },
     })
   })

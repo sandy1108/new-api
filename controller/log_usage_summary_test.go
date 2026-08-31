@@ -72,7 +72,7 @@ func TestGetLogsUsageSummaryAppliesAdminFilters(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(recorder)
 	ctx.Set("role", common.RoleAdminUser)
-	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/log/usage-summary?start_timestamp=900&end_timestamp=2000&username=alice&channel=7&group=vip", nil)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/log/usage-summary?start_timestamp=900&end_timestamp=2000&username=alice&channel=7&group=vip&include_trend=true", nil)
 
 	GetLogsUsageSummary(ctx)
 
@@ -82,6 +82,8 @@ func TestGetLogsUsageSummaryAppliesAdminFilters(t *testing.T) {
 	require.Equal(t, "alice", payload.Data.Items[0].Username)
 	require.Equal(t, int64(1), payload.Data.TotalRequests)
 	require.Equal(t, int64(15), payload.Data.TotalTokens)
+	require.Len(t, payload.Data.Trend, 1)
+	require.Equal(t, int64(15), payload.Data.Trend[0].TotalTokens)
 }
 
 func TestGetLogsSelfUsageSummaryRestrictsAuthenticatedUser(t *testing.T) {

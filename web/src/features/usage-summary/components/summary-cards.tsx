@@ -23,17 +23,46 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { Card, CardContent } from '@/components/ui/card'
+import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
 
-import { formatUsageNumber, formatUsageQuota } from '../lib/format'
+import {
+  formatUsageCompactNumber,
+  formatUsageNumber,
+  formatUsageQuota,
+} from '../lib/format'
 import type { UsageMetrics } from '../types'
 
 const metricCards = [
-  { key: 'requests', labelKey: 'Requests', icon: Activity },
-  { key: 'inputTokens', labelKey: 'Input Tokens', icon: ArrowDownToLine },
-  { key: 'outputTokens', labelKey: 'Output Tokens', icon: ArrowUpToLine },
-  { key: 'totalTokens', labelKey: 'Total Tokens', icon: Hash },
-  { key: 'quota', labelKey: 'Quota', icon: Coins },
+  {
+    key: 'requests',
+    labelKey: 'Requests',
+    icon: Activity,
+    iconTone: 'chart-1',
+  },
+  {
+    key: 'inputTokens',
+    labelKey: 'Input Tokens',
+    icon: ArrowDownToLine,
+    iconTone: 'chart-2',
+  },
+  {
+    key: 'outputTokens',
+    labelKey: 'Output Tokens',
+    icon: ArrowUpToLine,
+    iconTone: 'chart-3',
+  },
+  {
+    key: 'totalTokens',
+    labelKey: 'Total Tokens',
+    icon: Hash,
+    iconTone: 'chart-4',
+  },
+  {
+    key: 'quota',
+    labelKey: 'Quota',
+    icon: Coins,
+    iconTone: 'chart-5',
+  },
 ] as const
 
 export interface UsageSummaryCardsProps {
@@ -45,34 +74,56 @@ export function UsageSummaryCards(props: UsageSummaryCardsProps) {
 
   return (
     <div
-      className='grid gap-3 sm:grid-cols-2 lg:grid-cols-5'
+      className='bg-card overflow-hidden rounded-2xl border shadow-xs'
       data-testid='usage-summary-cards'
     >
-      {metricCards.map((metric) => {
-        const Icon = metric.icon
-        const value =
-          metric.key === 'quota'
-            ? formatUsageQuota(props.totals.quota)
-            : formatUsageNumber(props.totals[metric.key])
+      <div className='grid min-w-0 grid-cols-2 divide-x divide-y lg:grid-cols-5 lg:divide-y-0'>
+        {metricCards.map((metric, index) => {
+          const Icon = metric.icon
+          const rawValue = props.totals[metric.key]
+          const fullValue =
+            metric.key === 'quota'
+              ? formatUsageQuota(rawValue)
+              : formatUsageNumber(rawValue)
+          const value =
+            metric.key === 'quota'
+              ? fullValue
+              : formatUsageCompactNumber(rawValue)
 
-        return (
-          <Card key={metric.key} size='sm'>
-            <CardContent className='flex items-center gap-3 p-3'>
-              <span className='bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg'>
-                <Icon className='size-4' aria-hidden='true' />
-              </span>
-              <div className='min-w-0'>
-                <p className='text-muted-foreground truncate text-xs'>
+          return (
+            <div
+              key={metric.key}
+              className={`group min-w-0 px-2.5 py-2.5 sm:px-5 sm:py-4 ${
+                index === metricCards.length - 1
+                  ? 'col-span-2 lg:col-span-1'
+                  : ''
+              }`}
+            >
+              <div className='flex min-w-0 items-center gap-1.5 sm:gap-2'>
+                <IconBadge
+                  tone={metric.iconTone as IconBadgeTone}
+                  size='stat'
+                  className='size-5 rounded-md sm:size-7 sm:rounded-lg [&>svg]:size-3 sm:[&>svg]:size-3.5'
+                >
+                  <Icon />
+                </IconBadge>
+                <div className='text-muted-foreground truncate text-[11px] leading-4 font-medium tracking-wide sm:text-xs sm:tracking-wider'>
                   {t(metric.labelKey)}
-                </p>
-                <p className='text-foreground mt-0.5 truncate font-mono text-lg font-semibold tabular-nums'>
-                  {value}
-                </p>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        )
-      })}
+              <div
+                className='text-foreground mt-2 truncate font-mono text-lg leading-tight font-semibold tracking-tight tabular-nums sm:mt-3 sm:text-2xl'
+                title={fullValue}
+              >
+                {value}
+              </div>
+              <div className='text-muted-foreground/65 mt-1 truncate text-[10px] sm:text-xs'>
+                {t('Raw value: {{value}}', { value: fullValue })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

@@ -280,3 +280,51 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 
 - 重新执行 `python3 scripts/test_scan_handoffs.py` 和 `python3 scripts/scan-handoffs.py`：共发现 3 个交接包，`completed=3`、`pending=0`、`invalid=0`；生产候选 `rc.29` 交接包已由执行 Agent 回填完成。
 - 该扫描结果只代表交接包元数据和反馈文件状态；生产运行态仍以容器和 Compose 的独立只读检查为准。
+
+## 2026-08-31：Web 用量统计页三级明细 UI 修正
+
+- 用户确认采用数据看板风格后，进一步明确一级明细必须是“API 令牌”，不能把“Token”作为含义不清的维度名称。
+- 参考 Chrome 插件 `newapi-analysis-chrome-ext` 的 `renderRows()`、`renderDetail()` 和 `detail-state.js`，将 Web 页面交互调整为：API 令牌汇总 → 选中 API 令牌 → 渠道汇总 → 选中渠道 → 渠道内模型汇总。
+- 移除跨渠道混合的模型合计；切换 API 令牌或渠道只改变前端选择状态，不增加聚合接口请求。
+- 汇总卡片、令牌表、渠道指标和模型表使用中文 `千/万/亿` 紧凑单位，并通过 HTML `title` 保留完整数值。
+- 视觉预览文件保存在开发 Worktree 的 `.superpowers/brainstorm/7046-1788173052/content/usage-summary-v1.html` 和 `usage-summary-v2.html`，仅用于本地预览，不进入生产镜像。
+
+### 本次源码验证
+
+- `npx vitest run src/features/usage-summary/__tests__`：6 个测试文件、32 个测试通过。
+- `npx tsgo -b`：通过。
+- `npx oxlint -c .oxlintrc.json src/features/usage-summary`：通过。
+- `npx oxfmt -c .oxfmtrc.json --check`（本次涉及 9 个前端文件）：通过。
+- `git diff --check`：通过。
+- 七个 locale 的翻译键顺序和数量已核对一致；本次新增英文、简体中文、繁体中文文案，其他语言暂以英文回退值补齐键。
+- 仅修改开发 Worktree 的 usage-summary 组件/测试、i18n 和文档；未修改生产 Compose、生产容器、数据库或 Redis。
+
+## 2026-08-31：独立测试环境部署与演示数据
+
+- 测试资源目录：`../.backups/new-api/ui-test-20260831-03/`（相对 `ServiceTools/new-api-development`）。
+- 测试 Compose、环境变量和演示数据脚本均与 Git 源码、生产 Compose、`new-api-dev` 分离；`test.env` 与 `seed-demo.sql` 保持本机权限 600，不纳入版本库。
+- 测试项目/容器/网络：`new-api-ui-test`、`new-api-ui-test-app`、`new-api-ui-test-pg`、`new-api-ui-test-redis`、`new-api-ui-test-network`；应用端口 `3312:3000`，PostgreSQL/Redis 未暴露宿主机端口，数据卷独立。
+- 使用镜像：`new-api:dev-20260831-03-g4c647d35-dirty`；摘要 `sha256:b34597c98470700618fbf5f81b9f7b9a0f2714a072d59c92ca66372c048e974c`，架构 `linux/arm64`。
+- 测试管理员由 `/api/setup` 创建，账号和密码仅记录在测试目录 README；登录加密开关确认有效（`PASSWORD_LOGIN_ENCRYPTION_ENABLED=true`）。
+- 演示数据：2 个 API 令牌、4 个渠道、19 条 `type=2` 消费日志和 1 条 `type=3` 非消费日志；覆盖今天、昨天、近一周和更早日期。
+- 聚合接口验证：全量与个人接口均返回 `success=true`，全量结果为 19 requests、67,900 tokens、752,000 quota、8 个令牌/渠道/模型明细；时间范围和非法时间范围验证通过。
+- 加密网页登录、`/api/user/self`、管理员/个人聚合接口验证通过；自动化验证使用的临时 PAT 已清除。
+- 首次在应用运行后注入渠道数据时，后台批量能力尚未生成，触发一次已有 `InitChannelCache` nil-map 竞态；应用自动恢复，随后仅重启测试应用并确认已有数据下启动及后续同步无 panic/fatal/error。
+- 生产 `new-api`（`new-api:v1.0.0-rc.29-20260831-02-g4c647d35`）和既有 `new-api-dev` 均保持运行，本次未停止、未重建、未修改其 Compose、数据库、Redis 或数据卷。
+
+### UI 修正候选镜像更新（2026-08-31）
+
+- 针对三级明细交互修正重新构建候选镜像：`new-api:dev-20260831-04-g4c647d35-dirty`。
+- 镜像摘要：`sha256:b7084d227a3ca6748036c9267579bf0dd772557c46f8e2ae34a64d1eba225fd9`，架构 `linux/arm64`。
+- 仅使用测试 Compose 重建 `new-api-ui-test-app`；测试 PostgreSQL/Redis、生产 `new-api`、`new-api-dev` 及生产 Compose 均未触碰。
+- 测试应用端口仍为 `3312:3000`，当前容器状态为 `running` + `healthy`；`/api/status` 返回 `success=true`。
+- 自动化测试、类型检查、Lint、格式检查和 Docker 构建已完成；令牌与渠道点击切换已在后续测试环境回归中确认，边缘裁剪验收见下方 `dev-05` 小节。
+
+### 面板边缘裁剪样式修正候选镜像（2026-08-31）
+
+- 根因定位为统计页内部 `overflow-auto` 滚动层紧贴内容边界，卡片的边框、圆角和阴影绘制区域在左右两侧被裁剪。
+- 仅修改 `web/src/features/usage-summary/index.tsx` 的统计页滚动层，增加 `p-0.5 sm:p-1` 内缩；未修改全局 `SectionPageLayout`，避免影响其他页面。
+- 新候选镜像：`new-api:dev-20260831-05-g4c647d353-dirty`。
+- 镜像摘要：`sha256:764e8afe8104781d1056bbc95fd78451e6ac26f4c3e314a624b8c8c2ac41a3e6`，架构 `linux/arm64`。
+- 仅重建测试应用 `new-api-ui-test-app`，测试 PostgreSQL/Redis、生产 `new-api`、`new-api-dev` 及生产 Compose 均未触碰。
+- 用量统计模块 35 个测试、前端全量 441 个测试、类型检查、Lint、格式检查和 Docker 构建均通过；用户刷新测试页后确认面板左右边缘完整，本次 UI 修正通过人工验收。

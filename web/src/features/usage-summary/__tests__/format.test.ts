@@ -16,7 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 import { describe, expect, test } from 'vitest'
 
-import { formatUsageNumber, formatUsageQuota } from '../lib/format'
+import {
+  formatUsageCompactNumber,
+  formatUsageNumber,
+  formatUsageQuota,
+} from '../lib/format'
 
 describe('usage summary number formatting', () => {
   test('formats finite usage counts with thousands separators', () => {
@@ -30,5 +34,13 @@ describe('usage summary number formatting', () => {
 
   test('formats quota through the same safe integer representation', () => {
     expect(formatUsageQuota(420000)).toBe('420,000')
+  })
+
+  test('formats large usage counts with Chinese compact units', () => {
+    expect(formatUsageCompactNumber(123456789)).toBe('1.23亿')
+    expect(formatUsageCompactNumber(36842000)).toBe('3,684.2万')
+    expect(formatUsageCompactNumber(9876)).toBe('9.9千')
+    expect(formatUsageCompactNumber(999)).toBe('999')
+    expect(formatUsageCompactNumber(Number.NaN)).toBe('0')
   })
 })

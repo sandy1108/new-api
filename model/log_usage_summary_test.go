@@ -225,3 +225,66 @@ func TestGetUsageSummaryReturnsEmptyTotals(t *testing.T) {
 	require.Equal(t, int64(0), summary.TotalTokens)
 	require.Equal(t, int64(0), summary.TotalQuota)
 }
+
+func TestGetUsageSummaryIncludesDailyTrendWhenRequested(t *testing.T) {
+	truncateTables(t)
+
+	logs := []*Log{
+		{
+			UserId:           1,
+			Username:         "alice",
+			CreatedAt:        86400 + 100,
+			Type:             LogTypeConsume,
+			TokenId:          11,
+			TokenName:        "primary",
+			ChannelId:        7,
+			ModelName:        "gpt-a",
+			PromptTokens:     10,
+			CompletionTokens: 5,
+			Quota:            100,
+		},
+		{
+			UserId:           1,
+			Username:         "alice",
+			CreatedAt:        2*86400 + 100,
+			Type:             LogTypeConsume,
+			TokenId:          11,
+			TokenName:        "primary",
+			ChannelId:        7,
+			ModelName:        "gpt-a",
+			PromptTokens:     20,
+			CompletionTokens: 8,
+			Quota:            200,
+		},
+		{
+			UserId:           1,
+			Username:         "alice",
+			CreatedAt:        2*86400 + 200,
+			Type:             LogTypeError,
+			TokenId:          11,
+			TokenName:        "primary",
+			ChannelId:        7,
+			ModelName:        "gpt-a",
+			PromptTokens:     999,
+			CompletionTokens: 999,
+			Quota:            999,
+		},
+	}
+	for _, log := range logs {
+		require.NoError(t, DB.Create(log).Error)
+	}
+
+	summary, err := GetUsageSummary(UsageSummaryFilters{
+		StartTimestamp: 86400,
+		EndTimestamp:   3 * 86400,
+		IncludeTrend:   true,
+	})
+	require.NoError(t, err)
+	require.Len(t, summary.Trend, 2)
+	require.Equal(t, int64(86400), summary.Trend[0].Timestamp)
+	require.Equal(t, int64(1), summary.Trend[0].Requests)
+	require.Equal(t, int64(15), summary.Trend[0].TotalTokens)
+	require.Equal(t, int64(2*86400), summary.Trend[1].Timestamp)
+	require.Equal(t, int64(1), summary.Trend[1].Requests)
+	require.Equal(t, int64(28), summary.Trend[1].TotalTokens)
+}

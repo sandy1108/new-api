@@ -31,7 +31,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { UsageSummaryFilters } from './components/filters'
 import { UsageSummaryCards } from './components/summary-cards'
 import { TokenDetail } from './components/token-detail'
+import { TokenDistribution } from './components/token-distribution'
 import { TokenTable } from './components/token-table'
+import { UsageTrend } from './components/usage-trend'
 import {
   DEFAULT_USAGE_SUMMARY_RANGE,
   DEFAULT_USAGE_SUMMARY_SCOPE,
@@ -100,6 +102,7 @@ export function UsageSummary() {
     DEFAULT_USAGE_SUMMARY_SCOPE
   )
   const [selectedTokenKey, setSelectedTokenKey] = useState<string>()
+  const [selectedChannelKey, setSelectedChannelKey] = useState<string>()
   const range = useMemo(() => createUsageSummaryRange(rangeId), [rangeId])
   const query = useUsageSummary(range, requestedScope)
   const view = useMemo(
@@ -111,11 +114,19 @@ export function UsageSummary() {
   const handleRangeChange = (nextRangeId: UsageSummaryRangeId) => {
     setRangeId(nextRangeId)
     setSelectedTokenKey(undefined)
+    setSelectedChannelKey(undefined)
   }
 
   const handleScopeChange = (nextScope: UsageSummaryScope) => {
     setRequestedScope(nextScope)
     setSelectedTokenKey(undefined)
+    setSelectedChannelKey(undefined)
+  }
+
+  const handleTokenSelect = (key: string) => {
+    setSelectedTokenKey(key)
+    // 渠道属于当前 Token；切换 Token 时必须回到该 Token 的最高用量渠道。
+    setSelectedChannelKey(undefined)
   }
 
   const showInitialLoading = query.isLoading && !query.data
@@ -163,12 +174,13 @@ export function UsageSummary() {
               id='usage-summary-token-heading'
               className='mb-2 text-sm font-semibold'
             >
-              {t('Token Usage by Token')}
+              {t('API Token Summary')}
             </h3>
             <TokenTable
               tokens={view.tokens}
+              totalTokens={view.totals.totalTokens}
               selectedKey={selectedToken?.key}
-              onSelect={setSelectedTokenKey}
+              onSelect={handleTokenSelect}
             />
           </section>
           <section aria-labelledby='usage-summary-detail-heading'>
@@ -176,9 +188,13 @@ export function UsageSummary() {
               id='usage-summary-detail-heading'
               className='mb-2 text-sm font-semibold'
             >
-              {t('Channel and Model Details')}
+              {t('Token Details')}
             </h3>
-            <TokenDetail token={selectedToken} />
+            <TokenDetail
+              token={selectedToken}
+              selectedChannelKey={selectedChannelKey}
+              onChannelSelect={setSelectedChannelKey}
+            />
           </section>
         </>
       )
@@ -203,6 +219,13 @@ export function UsageSummary() {
           </Alert>
         )}
         <UsageSummaryCards totals={toServerTotals(data)} />
+        <div className='grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]'>
+          <UsageTrend points={data.trend ?? []} />
+          <TokenDistribution
+            tokens={view.tokens}
+            totalTokens={view.totals.totalTokens}
+          />
+        </div>
         {loadedContent}
       </>
     )
@@ -226,7 +249,7 @@ export function UsageSummary() {
       </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
         <div
-          className='flex h-full min-h-0 flex-col gap-4 overflow-auto'
+          className='flex h-full min-h-0 flex-col gap-4 overflow-auto p-0.5 sm:p-1'
           aria-busy={query.isFetching}
         >
           {content}

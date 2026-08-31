@@ -21,6 +21,10 @@ func parseUsageSummaryFilters(c *gin.Context) (model.UsageSummaryFilters, error)
 	if startTimestamp != 0 && endTimestamp != 0 && endTimestamp < startTimestamp {
 		return model.UsageSummaryFilters{}, fmt.Errorf("invalid time range")
 	}
+	includeTrend, err := parseOptionalUsageSummaryBool(c, "include_trend")
+	if err != nil {
+		return model.UsageSummaryFilters{}, err
+	}
 
 	channelID, err := parseOptionalUsageSummaryInt(c, "channel")
 	if err != nil {
@@ -30,12 +34,25 @@ func parseUsageSummaryFilters(c *gin.Context) (model.UsageSummaryFilters, error)
 	return model.UsageSummaryFilters{
 		StartTimestamp: startTimestamp,
 		EndTimestamp:   endTimestamp,
+		IncludeTrend:   includeTrend,
 		ModelName:      c.Query("model_name"),
 		Username:       c.Query("username"),
 		TokenName:      c.Query("token_name"),
 		ChannelID:      channelID,
 		Group:          c.Query("group"),
 	}, nil
+}
+
+func parseOptionalUsageSummaryBool(c *gin.Context, key string) (bool, error) {
+	raw := c.Query(key)
+	if raw == "" {
+		return false, nil
+	}
+	value, err := strconv.ParseBool(raw)
+	if err != nil {
+		return false, fmt.Errorf("invalid %s", key)
+	}
+	return value, nil
 }
 
 func parseOptionalUsageSummaryTimestamp(c *gin.Context, key string) (int64, error) {

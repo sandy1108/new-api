@@ -28,6 +28,29 @@ export function formatUsageNumber(value: number): string {
   return usageNumberFormatter.format(Number.isFinite(value) ? value : 0)
 }
 
+/**
+ * 使用中文单位压缩大数，同时保留稳定的完整数值格式供 title 和核对使用。
+ */
+export function formatUsageCompactNumber(value: number): string {
+  const safeValue = Number.isFinite(value) ? value : 0
+  const absoluteValue = Math.abs(safeValue)
+  let unit: { divisor: number; suffix: string } | null = null
+  if (absoluteValue >= 100_000_000) {
+    unit = { divisor: 100_000_000, suffix: '亿' }
+  } else if (absoluteValue >= 10_000) {
+    unit = { divisor: 10_000, suffix: '万' }
+  } else if (absoluteValue >= 1_000) {
+    unit = { divisor: 1_000, suffix: '千' }
+  }
+
+  if (!unit) return formatUsageNumber(safeValue)
+
+  const compactFormatter = new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: unit.suffix === '千' ? 1 : 2,
+  })
+  return `${compactFormatter.format(safeValue / unit.divisor)}${unit.suffix}`
+}
+
 export function formatUsageQuota(value: number): string {
   return formatUsageNumber(value)
 }

@@ -41,6 +41,15 @@ export interface UsageSummaryItem {
   quota: number
 }
 
+export interface UsageSummaryTrendPoint {
+  timestamp: number
+  requests: number
+  input_tokens: number
+  output_tokens: number
+  total_tokens: number
+  quota: number
+}
+
 export interface UsageSummaryData {
   total_requests: number
   total_input_tokens: number
@@ -48,6 +57,7 @@ export interface UsageSummaryData {
   total_tokens: number
   total_quota: number
   items: UsageSummaryItem[]
+  trend?: UsageSummaryTrendPoint[]
 }
 
 export interface UsageSummaryEnvelope {

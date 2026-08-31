@@ -148,3 +148,20 @@ export function selectDefaultToken(
   }
   return tokens[0]
 }
+
+/**
+ * 解析当前渠道；令牌或时间范围变化后，失效的 key 必须回退到最高用量渠道。
+ */
+export function selectDefaultChannel(
+  token: UsageTokenBucket | null,
+  selectedKey?: string
+): UsageChannelBucket | null {
+  if (!token || token.channels.length === 0) return null
+  if (selectedKey) {
+    const selected = token.channels.find(
+      (channel) => channel.key === selectedKey
+    )
+    if (selected) return selected
+  }
+  return token.channels[0]
+}

@@ -23,6 +23,7 @@ import type {
   UsageSummaryItem,
   UsageSummaryRange,
   UsageSummaryScope,
+  UsageSummaryTrendPoint,
 } from './types'
 
 export interface GetUsageSummaryParams {
@@ -77,10 +78,30 @@ function isUsageSummaryData(value: unknown): value is UsageSummaryData {
     'total_tokens',
     'total_quota',
   ]
+  const trend = value.trend
+  const validTrend =
+    trend === undefined ||
+    (Array.isArray(trend) && trend.every(isUsageSummaryTrendPoint))
+
   return (
     totalFields.every((field) => isFiniteNumber(value[field])) &&
-    value.items.every(isUsageSummaryItem)
+    value.items.every(isUsageSummaryItem) &&
+    validTrend
   )
+}
+
+function isUsageSummaryTrendPoint(
+  value: unknown
+): value is UsageSummaryTrendPoint {
+  if (!isRecord(value)) return false
+  return [
+    'timestamp',
+    'requests',
+    'input_tokens',
+    'output_tokens',
+    'total_tokens',
+    'quota',
+  ].every((field) => isFiniteNumber(value[field]))
 }
 
 function parseUsageSummaryResponse(value: unknown): UsageSummaryData {
@@ -112,6 +133,7 @@ export async function getUsageSummary(
     params: {
       start_timestamp: params.range.startTimestamp,
       end_timestamp: params.range.endTimestamp,
+      include_trend: true,
     },
   })
   return parseUsageSummaryResponse(response.data)
