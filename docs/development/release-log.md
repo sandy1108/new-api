@@ -215,3 +215,20 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 预切换备份目录：`.backups/new-api/pre-switch-20260831-rc29/`。PostgreSQL dump SHA-256 为 `c8163626f04eeb3eff1b7a76de7c3da42b7833b6af4dcd0009ac6bbaacbae979`；加入加密登录后的 Compose 快照 SHA-256 为 `390c37f866f10d0d13b49ec09b02b0df0aae0796e43eaf90f314f9b77d43ade5`。
 - 生产切换交接包：`.backups/new-api/pre-switch-20260831-rc29/PRODUCTION_SWITCH_HANDOFF.md`。其中只允许替换 `new-api` 应用镜像并执行 `--no-build --pull never --no-deps`，禁止触碰 PostgreSQL/Redis、数据卷或执行 `down -v`。
 - 本轮仅完成备份、配置预置和交接材料生成，未重启或重建正式容器；正式切换需另行安排中断窗口并完成健康、登录、聚合接口和实际 Codex 流量验证。
+
+## 2026-08-31：交接包管理机制
+
+### 规范与目录
+
+- 管理规范：`docs/development/handoff-management.md`。
+- 版本库入口与模板：`docs/development/handoffs/README.md`、`docs/development/handoffs/templates/`。
+- 私有实际交接包统一放在工程同级 `.backups/new-api/handoffs/<handoff-id>/`；历史 `pre-switch-*`、`pre-sync-*` 和 `release-*` 目录由扫描器兼容。
+- 每个包包含 `handoff.json`、任务说明（通常为 `HANDOFF.md`）和同目录 `EXECUTION_FEEDBACK.md`。私有备份、凭据和运行态证据不进入 Git。
+
+### 扫描器与状态
+
+- 扫描脚本：`scripts/scan-handoffs.py`；测试：`scripts/test_scan_handoffs.py`。
+- `python3 scripts/test_scan_handoffs.py`：7 项测试通过。
+- `python3 scripts/scan-handoffs.py`：当前发现 2 个包，`completed=1`、`pending=1`，`invalid=0`。
+- 已为历史首次本地镜像切换包补齐元数据并登记为 `completed`；生产候选 `rc.29` 切换包补齐元数据和待执行反馈，保持 `pending`，没有伪造执行结果。
+- Codex 负责创建和填写 `pending` 发包材料；豆包负责执行、更新状态并填写同目录反馈。最终回复必须同时提供可点击和纯文本的绝对路径。

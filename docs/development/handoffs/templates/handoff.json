@@ -1,0 +1,14 @@
+{
+  "handoff_id": "new-api-<task>-<yyyymmdd>-<sequence>",
+  "title": "<任务标题>",
+  "status": "pending",
+  "sender_agent": "codex",
+  "executor_agent": "doubao",
+  "created_at": "<YYYY-MM-DD>",
+  "started_at": null,
+  "completed_at": null,
+  "result": null,
+  "handoff_file": "HANDOFF.md",
+  "feedback_file": "EXECUTION_FEEDBACK.md",
+  "sensitivity": "private"
+}
