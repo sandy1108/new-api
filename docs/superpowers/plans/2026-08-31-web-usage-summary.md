@@ -69,8 +69,13 @@ web/src/routeTree.gen.ts                              # 生成产物，不手工
 - Create: `web/src/features/usage-summary/types.ts`
 - Create: `web/src/features/usage-summary/constants.ts`
 - Create: `web/src/features/usage-summary/lib/format.ts`
+- Test: `web/src/features/usage-summary/__tests__/format.test.ts`
 
-- [ ] **Step 1: 定义后端响应和页面模型类型**
+- [ ] **Step 1: 先写格式化失败测试**
+
+  在实现格式化函数前，验证有限整数使用本地千分位、非有限数值按约定显示 `0`，并覆盖 quota 与普通数量走同一安全格式化路径。
+
+- [ ] **Step 2: 定义后端响应和页面模型类型**
 
   在 `types.ts` 中定义以下稳定契约，不使用 `any`：
 
@@ -158,7 +163,7 @@ web/src/routeTree.gen.ts                              # 生成产物，不手工
 
   页面层只使用这些归一化模型，避免把后端 snake_case 字段散落在 TSX 中；模型只挂在渠道下，Token 只挂渠道列表。
 
-- [ ] **Step 2: 固定选项和缓存策略**
+- [ ] **Step 3: 固定选项和缓存策略**
 
   在 `constants.ts` 中导出只读的七个范围选项，label 使用 i18n key；默认范围为 `today`，默认管理员范围为 `all`，查询 `staleTime` 为 `10 * 60 * 1000`。不要在常量中写已经翻译好的中文，也不要增加未被页面使用的配置开关。
 
@@ -177,11 +182,11 @@ web/src/routeTree.gen.ts                              # 生成产物，不手工
   ] as const
   ```
 
-- [ ] **Step 3: 实现最小数字格式化函数**
+- [ ] **Step 4: 实现最小数字格式化函数**
 
   在 `lib/format.ts` 中实现 `formatUsageNumber(value: number): string` 和 `formatUsageQuota(value: number): string`，统一使用 `Intl.NumberFormat`，对非有限值显示 `0`，不把 quota 擅自换算为 USD/CNY。所有页面文案仍通过组件的 `t()` 输出。
 
-- [ ] **Step 4: 做静态检查并提交类型层**
+- [ ] **Step 5: 运行格式化测试、静态检查并提交类型层**
 
   运行：
 
@@ -189,6 +194,7 @@ web/src/routeTree.gen.ts                              # 生成产物，不手工
   cd /Users/zhangyipeng/MyCodingSpace/ServiceTools/new-api-development/web
   bun run typecheck
   bunx oxlint -c .oxlintrc.json src/features/usage-summary/types.ts src/features/usage-summary/constants.ts src/features/usage-summary/lib/format.ts
+  bun run test -- src/features/usage-summary/__tests__/format.test.ts
   ```
 
   预期：命令退出码均为 0。提交：`feat: 建立 Web 用量统计类型契约`。
