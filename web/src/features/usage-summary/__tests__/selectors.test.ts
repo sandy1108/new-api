@@ -74,6 +74,47 @@ describe('usage summary selectors', () => {
     expect(view.tokens.map((token) => token.username)).toEqual(['bob', 'alice'])
   })
 
+  test('isolates identical channels and models across different tokens', () => {
+    const view = aggregateUsageItems([
+      makeItem({
+        user_id: 1,
+        username: 'alice',
+        token_id: 10,
+        input_tokens: 20,
+        output_tokens: 5,
+      }),
+      makeItem({
+        user_id: 2,
+        username: 'bob',
+        token_id: 11,
+        input_tokens: 200,
+        output_tokens: 50,
+      }),
+      makeItem({
+        user_id: 1,
+        username: 'alice',
+        token_id: 10,
+        input_tokens: 20,
+        output_tokens: 5,
+      }),
+      makeItem({
+        user_id: 2,
+        username: 'bob',
+        token_id: 11,
+        input_tokens: 200,
+        output_tokens: 50,
+      }),
+    ])
+
+    expect(view.tokens).toHaveLength(2)
+    expect(
+      view.tokens.map((token) => token.channels[0].models[0].totalTokens)
+    ).toEqual([500, 50])
+    expect(view.tokens.every((token) => token.channels[0].models)).toBe(true)
+    expect(view.tokens[0].channels[0].models).toHaveLength(1)
+    expect(view.tokens[1].channels[0].models).toHaveLength(1)
+  })
+
   test('sorts tokens, channels, and models by total tokens descending', () => {
     const view = aggregateUsageItems([
       makeItem({ token_id: 10, model_name: 'small', input_tokens: 10 }),

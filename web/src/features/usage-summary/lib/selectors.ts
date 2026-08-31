@@ -92,6 +92,7 @@ export function aggregateUsageItems(
       item.channel_name ||
       (item.channel_id ? `渠道 #${item.channel_id}` : '未记录渠道')
     const channelKey = identityKey(item.channel_id, channelName)
+    const modelMapKey = identityKey(tokenKey, channelKey)
     const channelsForToken = channelMaps.get(tokenKey)
     if (!channelsForToken) continue
 
@@ -106,13 +107,13 @@ export function aggregateUsageItems(
       }
       channelsForToken.set(channelKey, channel)
       token.channels.push(channel)
-      modelMaps.set(channelKey, new Map())
+      modelMaps.set(modelMapKey, new Map())
     }
 
     addMetrics(channel, item)
 
     const modelName = item.model_name || '未记录模型'
-    const modelsForChannel = modelMaps.get(channelKey)
+    const modelsForChannel = modelMaps.get(modelMapKey)
     if (!modelsForChannel) continue
 
     let model = modelsForChannel.get(modelName)
