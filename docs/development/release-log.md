@@ -232,3 +232,4 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - `python3 scripts/scan-handoffs.py`：当前发现 2 个包，`completed=1`、`pending=1`，`invalid=0`。
 - 已为历史首次本地镜像切换包补齐元数据并登记为 `completed`；生产候选 `rc.29` 切换包补齐元数据和待执行反馈，保持 `pending`，没有伪造执行结果。
 - Codex 负责创建和填写 `pending` 发包材料；豆包负责执行、更新状态并填写同目录反馈。最终回复必须同时提供可点击和纯文本的绝对路径。
+- 本轮只读复核发现生产 `new-api` 已运行候选 `rc.29` 镜像且为 `healthy`，但未观察到执行 Agent 回填该包；因此 `new-api-pre-switch-20260831-rc29` 仍按元数据保持 `pending`，不能仅凭容器状态推断完整验收已完成。

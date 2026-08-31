@@ -120,7 +120,7 @@ python3 /Users/zhangyipeng/MyCodingSpace/ServiceTools/new-api-development/script
   --project-root /Users/zhangyipeng/MyCodingSpace/ServiceTools/new-api
 ```
 
-表格输出适合人工巡检，JSON 输出适合后续脚本或 Dashboard 消费。扫描器只读取元数据和文件是否存在，不打印交接正文、Token、密码、私钥或数据库内容。`invalid` 表示元数据损坏或字段不合法；旧目录缺少元数据时会登记为 `pending` 并给出警告，不能误认为已完成。
+表格输出适合人工巡检，JSON 输出适合后续脚本或 Dashboard 消费。扫描器只读取元数据和文件是否存在，不打印交接正文、Token、密码、私钥或数据库内容。状态只以 `handoff.json` 为准，不根据容器、进程或其他外部状态自动推断完成，避免把“服务已经切换”误报成“验收已完成”。`invalid` 表示元数据损坏或字段不合法；旧目录缺少元数据时会登记为 `pending` 并给出警告，不能误认为已完成。
 
 ## 6. 反馈模板最低要求
 
