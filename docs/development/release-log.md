@@ -423,3 +423,8 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 ### 回滚方案
 
 - 镜像行改回 `new-api:v1.0.0-rc.29-20260831-03-g0b487787` 后再次 `up -d --no-build --pull never --no-deps new-api` 即恢复切换前状态；数据库备份位于上述备份目录。
+
+### 用户最终验证（2026-09-06）
+
+- 用户已确认生产环境运行正常：管理员登录与实际 Codex 流量均通过验证。
+- 本次同步（rc.29 → rc.33+2，生产镜像 `new-api:v1.0.0-rc.33-20260906-01-g6bebe63db`）正式收尾，无遗留待办。
