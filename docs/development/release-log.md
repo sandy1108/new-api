@@ -328,3 +328,36 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 镜像摘要：`sha256:764e8afe8104781d1056bbc95fd78451e6ac26f4c3e314a624b8c8c2ac41a3e6`，架构 `linux/arm64`。
 - 仅重建测试应用 `new-api-ui-test-app`，测试 PostgreSQL/Redis、生产 `new-api`、`new-api-dev` 及生产 Compose 均未触碰。
 - 用量统计模块 35 个测试、前端全量 441 个测试、类型检查、Lint、格式检查和 Docker 构建均通过；用户刷新测试页后确认面板左右边缘完整，本次 UI 修正通过人工验收。
+
+## 2026-09-06：官方主线同步 20260906 开发分支验证
+
+### 同步范围
+
+- 官方基线：`2b6f1dfe`（v1.0.0-rc.29）→ `origin/main` 最新 `49ec46966`，共 23 个官方提交，跨 rc.30/rc.31/rc.32/rc.33。
+- 开发 Worktree：`new-api-development`，新分支 `upgrade/upstream-main-20260906`，merge 提交 `815e5869b`（`merge: 同步官方主线 20260906`）。
+- 同步前备份分支：`backup/pre-sync-20260906-185020`（`0b487787`）。
+- merge 无冲突；个人提交完整保留（`origin/main..HEAD` = 23，即 22 个个人提交 + 1 个 merge 提交）。
+
+### 重点官方变更
+
+- 数据库迁移：`27ff6a876` migrate legacy token key constraints（含官方迁移测试）。
+- 计费：gpt-6-astra 内置表达式计价、hosted-tool 转换与计费完整性系列。
+- 日志：LogOther 投影重构、特权元数据隔离、usage statistics quota 修复（与个人用量统计功能重叠区）。
+
+### 验证结果
+
+- Go 根模块全量测试（`golang:1.26.1-alpine` 容器，`GOWORK=off`）：通过。
+- `relaykit` 独立构建（`GOWORK=off go build ./...`）：通过。
+- 前端 `vitest`：66 个文件 443 个测试全部通过；`tsgo -b`：通过。
+- 三库迁移验证：SQLite 内存库；临时容器真实 MySQL 8.0 与 PostgreSQL 15，`TestMigrateTokenKey` 全场景通过，`./model` 带真实 DSN 全量通过；临时容器与网络已清理。
+- 开发镜像：`new-api:dev-20260906-01-g815e5869b`（`sha256:65ec7011ee212ee2e5310a81477c24fc430e7be1920e143d8601f43cb8607739`，linux/arm64，241MB）。因 Docker VM 仅约 2GB 内存，使用临时 `Dockerfile.syncbuild` 在 Go 构建阶段追加 `GOMAXPROCS=1 GOFLAGS=-p=1` 串行构建；官方 `Dockerfile` 未改动，临时文件已删除。
+- 隔离栈验证（`new-api-sync-verify`，`127.0.0.1:3313`，独立 PG15/Redis/数据卷）：
+  - `/api/status` 返回 `success=true`；无 Token 请求 `/v1/models` 与两个聚合接口均返回 401。
+  - `PASSWORD_LOGIN_ENCRYPTION_ENABLED=true` 下 RSA-OAEP 加密登录成功；JWT Bearer 调用 `/api/log/self/usage-summary` 与 `/api/log/usage-summary` 均 HTTP 200（个人功能正常）。
+  - 应用重启两次 `/api/status` 均为 `success=true`，容器日志无 panic/fatal/迁移错误（新库迁移幂等）。
+  - 验证后临时栈、网络与数据卷已全部删除；测试账号仅存在于已删除的临时卷中。
+
+### 边界与待办
+
+- 未合入 `personal/main`、未推送 `myfork`、未构建正式候选镜像、未触碰生产栈。
+- 待办：用户审批后合入并推送；生产发布前建议补充升级路径（旧库→新库）应用级验证与 `/usage-summary` 浏览器回归。
