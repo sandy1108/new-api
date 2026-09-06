@@ -361,3 +361,35 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 
 - 未合入 `personal/main`、未推送 `myfork`、未构建正式候选镜像、未触碰生产栈。
 - 待办：用户审批后合入并推送；生产发布前建议补充升级路径（旧库→新库）应用级验证与 `/usage-summary` 浏览器回归。
+
+## 2026-09-06：同步分支合入 personal/main 与正式候选镜像验证
+
+### Git 合入与推送
+
+- `release-log.md` 记录提交 `6bebe63db`（docs: 记录 20260906 官方主线同步开发验证结果）。
+- `personal/main` 在生产 Worktree 以 `--ff-only` 从 `0b487787` 前进到 `6bebe63db`，工作区保持干净。
+- 已推送 `myfork`：`personal/main` 与 `upgrade/upstream-main-20260906` 均为 `6bebe63db`；`myfork/main` 官方镜像同步至 `49ec46966`。
+
+### 正式候选镜像
+
+- 构建目录：`new-api-production`（`personal/main` @ `6bebe63db`）。
+- 候选镜像：`new-api:v1.0.0-rc.33-20260906-01-g6bebe63db`，镜像 ID `sha256:65ec7011ee212ee2e5310a81477c24fc430e7be1920e143d8601f43cb8607739`，linux/arm64，241MB。
+- 该镜像与开发镜像 `new-api:dev-20260906-01-g815e5869b` 为同一镜像 ID（同一源码产物），前一轮隔离栈验证结果直接适用于本候选镜像。
+- 构建同样使用临时 `Dockerfile.syncbuild` 串行参数，官方 `Dockerfile` 未改动，临时文件已删除。
+
+### 升级路径验证（旧库 → 新候选镜像）
+
+- 临时隔离栈：`new-api-upgrade-verify`（`127.0.0.1:3314`，独立 PG15/Redis/数据卷）。
+- 旧库建立：旧生产镜像 `new-api:v1.0.0-rc.29-20260831-03-g0b487787` 启动，创建管理员、1 个渠道、1 个令牌，直插 2 条 `type=2` 消费日志（quota 合计 4,560）。
+- 切换新候选镜像启动：`/api/status` `success=true`；既有数据完整保留（日志 2 条/渠道 1/令牌 1）；旧密码加密登录成功；管理员聚合接口返回 HTTP 200 且请求数 2、quota 4,560，与旧库一致。
+- 重启第二次启动 `success=true`，日志无 panic/fatal；验证后临时栈、网络与数据卷已全部删除，测试账号随卷销毁。
+
+### 浏览器回归（/usage-summary）
+
+- 新候选镜像 + 升级后的旧库数据，真实浏览器管理员登录后打开 `/usage-summary`：统计卡片（请求数 2、输入 930、输出 264、总 1,194、额度 4,560）与旧库一致；趋势图、API 令牌分布、三级明细（API 令牌 → 渠道 → 渠道内模型）渲染和交互正常，中文紧凑单位与占比正常。
+- 截图确认卡片边框与面板边缘完整，无边缘裁剪回归。回归后浏览器页签关闭。
+
+### 边界
+
+- 生产容器、生产 Compose、生产数据（`.volumes/new-api/`）本轮全程未触碰；生产仍运行 `new-api:v1.0.0-rc.29-20260831-03-g0b487787`。
+- 生产切换需用户另行确认后按交接包流程执行。
