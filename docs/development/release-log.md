@@ -393,3 +393,33 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 
 - 生产容器、生产 Compose、生产数据（`.volumes/new-api/`）本轮全程未触碰；生产仍运行 `new-api:v1.0.0-rc.29-20260831-03-g0b487787`。
 - 生产切换需用户另行确认后按交接包流程执行。
+
+## 2026-09-06：生产切换至 rc.33-20260906-01
+
+### 切换前备份
+
+- 备份目录：`.backups/new-api/release-20260906-sync-rc33/`。
+- PostgreSQL dump（`pg_dump -Fc`，3.05MB）SHA-256：`13bc5159d79516cd5e257dce10ec9e1c1419ee9cb62e98747616029cfc33a01a`。
+- 切换前 Compose 快照 SHA-256：`31c0cc6c9e1f2e9cc48b8f46de2f706f2f7c242950b15d9faaaea76168508672`。
+- 切换前运行镜像：`new-api:v1.0.0-rc.29-20260831-03-g0b487787`（Up 2 days, healthy）。
+
+### 历史状态勘误
+
+- 切换前检查发现 `new-api:v1.0.0-rc.29-20260831-03-g0b487787` 标签当前指向镜像 ID `sha256:764e8afe8104…`，与 `new-api:dev-20260831-05-g4c647d353-dirty`（用量统计面板边缘裁剪修正候选）相同，即上一轮生产容器实际运行的是 -05 dirty 构建而非标签原始构建。该标签仍指向生产切换前实际运行的镜像，按标签回滚路径有效。历史操作与记录不一致的原因已无法追溯，仅在此登记勘误。
+
+### 切换操作
+
+- 生产 Compose（`new-api/docker-compose.yml`）仅镜像行变更为 `new-api:v1.0.0-rc.33-20260906-01-g6bebe63db`（diff 全文仅此一行）。
+- `docker compose up -d --no-build --pull never --no-deps new-api` 只重建应用容器；PostgreSQL、Redis、Nginx、数据卷均未触碰（切换后仍为 Up 2 days）。
+
+### 切换后验证
+
+- 容器 `new-api` 运行新镜像（ID `sha256:65ec7011ee21…` 与候选一致），状态 `running + healthy`。
+- 容器内 `/api/status` 返回 `success=true`；无 Token 请求 `/v1/models` 与 `/api/log/usage-summary` 均返回 401。
+- Nginx HTTPS 公网入口 `/api/status` 返回 `success=true`。
+- 应用日志无 panic/fatal/迁移错误。
+- 管理员登录与实际 Codex 流量验证待用户自行确认；数据库迁移（token key 约束）已在升级路径验证中确认幂等且向后兼容。
+
+### 回滚方案
+
+- 镜像行改回 `new-api:v1.0.0-rc.29-20260831-03-g0b487787` 后再次 `up -d --no-build --pull never --no-deps new-api` 即恢复切换前状态；数据库备份位于上述备份目录。
