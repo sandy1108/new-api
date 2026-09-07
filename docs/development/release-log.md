@@ -456,5 +456,21 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 ### 当前门槛与后续
 
 - 当前只完成开发分支源码合并和主机/容器化编译验证，尚未构建新的开发镜像或切换任何运行容器。
-- 下一步使用不可变开发标签 `new-api:dev-20260907-01-gc593db418` 构建镜像，并在独立 Compose 项目、端口、PostgreSQL、Redis、数据目录中执行“旧镜像建库 → 新镜像升级”的回归。
+- 已使用合并后文档提交固定源码构建不可变开发镜像：`new-api:dev-20260907-01-g8e5246350`；镜像 ID `sha256:ba933112636ea3062420e491b8ace80235fda206bc63df7bbe292135b2bb1d97`，架构 `linux/arm64`，大小约 242.6 MB，构建时间 2026-09-07 23:03（Asia/Shanghai）。构建阶段使用临时 `Dockerfile.syncbuild` 串行 Go 编译参数，构建完成后已删除临时文件，官方 `Dockerfile` 未修改。
+- 下一步在独立 Compose 项目、端口、PostgreSQL、Redis、数据目录中执行“旧镜像建库 → 新镜像升级”的回归。
 - 测试重点：新迁移幂等、旧数据保留、`PASSWORD_LOGIN_ENCRYPTION_ENABLED=true`、后台登录、`/api/status`、`/v1/models`、`/v1/responses`、两个用量聚合接口以及 Web `/usage-summary`。测试完成前不合入 `personal/main`、不推送远端、不触碰生产。
+
+### 隔离升级路径验证
+
+- 测试 Compose：`.backups/new-api/upgrade-verify-20260907/docker-compose.yml`；项目、网络、应用端口 `3315`、PostgreSQL、Redis、应用数据卷和数据库卷均独立于生产及既有开发栈。
+- 旧基线镜像：`new-api:v1.0.0-rc.33-20260906-01-g6bebe63db`；先完成初始化并写入合成数据：1 个管理员、2 个 API 令牌、2 个渠道、3 条 `type=2` 消费日志、1 条 `type=3` 管理日志。
+- 切换到新镜像 `new-api:dev-20260907-01-g8e5246350` 后，用户/令牌/渠道/日志行数保持 `1/2/2/3/1`；新迁移创建 `audit_logs`，并补充 `users.access_token_created_at`，登录审计记录正常生成。
+- `PASSWORD_LOGIN_ENCRYPTION_ENABLED=true` 下，RSA-OAEP 登录成功；`/api/status` `success=true`、`setup=true`；管理员和个人聚合均返回 3 请求、1,500 输入 Token、450 输出 Token、1,950 总 Token、6,900 quota；管理员明细 3 条。
+- API 冒烟：带合成 API 令牌的 `/v1/models` HTTP 200；未认证 `/api/log/usage-summary`、`/api/log/self/usage-summary` 和 `POST /v1/responses` 均按预期 HTTP 401；Web 根页面 HTTP 200。
+- 新镜像连续重启 2 次均恢复 `/api/status`；PostgreSQL/Redis 容器 ID 未变化；迁移/启动错误扫描无 fatal、迁移失败或 panic。首次切换日志曾出现一次 `InitChannelCache panic: assignment to entry in nil map, retrying once`，应用自动重试并完成渠道同步；这是现有可恢复竞态的观察项，不等同于迁移失败，正式切换前仍应继续观察。
+- Playwright CLI 尝试进行真实浏览器登录/`/usage-summary` 页面回归，但本机 Chrome 在启动阶段收到 `SIGTRAP` 退出，未形成新的浏览器 DOM 证据；不将该项表述为已完成的浏览器人工验收。前端自动化测试、类型检查和 Rsbuild 构建仍已通过。
+
+### 当前状态
+
+- 隔离升级验证栈目前保留运行，便于用户从 `http://127.0.0.1:3315` 做人工页面检查；测试账号和合成数据仅存在于该独立卷，不与生产共享。
+- 本轮未合入 `personal/main`、未推送 `myfork`、未构建正式候选镜像，生产容器和生产数据全程未触碰。正式发布前仍需用户确认是否采用该开发镜像，并补做可用浏览器环境下的 `/usage-summary` 页面验收及实际 Agent 流量回归。
