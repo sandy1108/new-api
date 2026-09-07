@@ -428,3 +428,33 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 
 - 用户已确认生产环境运行正常：管理员登录与实际 Codex 流量均通过验证。
 - 本次同步（rc.29 → rc.33+2，生产镜像 `new-api:v1.0.0-rc.33-20260906-01-g6bebe63db`）正式收尾，无遗留待办。
+
+## 2026-09-07：官方主线同步至 6298b0f 开发回归
+
+### 同步范围
+
+- 官方远端：`origin/main`，目标提交 `6298b0f3238461b9629dfc1c00866f8325123aa1`。
+- 开发 Worktree：`new-api-development`，升级分支 `upgrade/upstream-main-20260907`。
+- 同步方式：以当前个人维护基线执行 `git merge --no-ff --no-commit origin/main`，解决前端菜单/路由冲突后提交合并结果。
+- 合并提交：`c593db418`（`merge: 同步官方主线并保留用量统计改造`）。
+- 生产 Worktree、生产 Compose、生产容器、生产 PostgreSQL/Redis 与正式数据本轮均未触碰。
+
+### 冲突与个人改造保留
+
+- 保留个人 `Token Usage` 页面和两个日志用量聚合接口：`/api/log/usage-summary`、`/api/log/self/usage-summary`。
+- 合入官方 `Audit Logs`、`Security & Access`、统一登录验证/安全审计、模型供应商与价格管理、Responses/Relay 修复及数据库迁移改动。
+- 侧边栏顺序调整为 `Usage Logs → Audit Logs → Token Usage`；个人统计页不再覆盖官方审计和安全入口。
+- 为两个官方前端测试补充 `ApiRequestConfig` 类型标注，解决 `tsgo` 对 `config.params` 的推断问题；未修改业务逻辑。
+
+### 源码验证
+
+- Go：在 `golang:1.26.1-alpine` 临时容器中执行 `GOWORK=off go test ./...` 与 `GOWORK=off go build ./...`，两项退出码均为 `0`。
+- 前端：Vitest `95/95` 测试文件、`710/710` 测试通过；`bun run typecheck` 与 `bun run build` 通过。
+- 本次涉及文件的定向 Oxlint/Oxfmt 检查通过；全仓 `format:check` 仍被官方既有文件（包括根 `AGENTS.md` 和多个既有组件）列出的格式差异拦截，未对无关文件做格式化。
+- `git diff --check` 通过；合并后工作区仅保留既有未跟踪的 Superpowers 预览/计划、依赖目录和本地锁文件，均未纳入提交。
+
+### 当前门槛与后续
+
+- 当前只完成开发分支源码合并和主机/容器化编译验证，尚未构建新的开发镜像或切换任何运行容器。
+- 下一步使用不可变开发标签 `new-api:dev-20260907-01-gc593db418` 构建镜像，并在独立 Compose 项目、端口、PostgreSQL、Redis、数据目录中执行“旧镜像建库 → 新镜像升级”的回归。
+- 测试重点：新迁移幂等、旧数据保留、`PASSWORD_LOGIN_ENCRYPTION_ENABLED=true`、后台登录、`/api/status`、`/v1/models`、`/v1/responses`、两个用量聚合接口以及 Web `/usage-summary`。测试完成前不合入 `personal/main`、不推送远端、不触碰生产。
