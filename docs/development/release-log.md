@@ -474,3 +474,42 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 
 - 隔离升级验证栈目前保留运行，便于用户从 `http://127.0.0.1:3315` 做人工页面检查；测试账号和合成数据仅存在于该独立卷，不与生产共享。
 - 本轮未合入 `personal/main`、未推送 `myfork`、未构建正式候选镜像，生产容器和生产数据全程未触碰。正式发布前仍需用户确认是否采用该开发镜像，并补做可用浏览器环境下的 `/usage-summary` 页面验收及实际 Agent 流量回归。
+
+## 2026-09-08：官方主线同步至 rc.35 与隔离测试回归
+
+### 同步与源码
+
+- 官方远端：`origin/main=0e0ba152bdcc6891f6053047ccf14d41b3cad60a`（`v1.0.0-rc.35`）。
+- 开发/升级分支：`upgrade/upstream-main-20260908`，合并提交 `40d5fd64c682f6799934fd10c199448ed8b20008`；`personal/main` 已快进到同一提交并推送到 `myfork`。
+- 本轮主要吸收官方插件系统与插件图标、模型计价编辑器和 Web 管理页面改动；未发现新的数据库迁移文件，现有迁移在隔离 PostgreSQL 中启动两次均幂等。
+- 官方新增测试中有两项标签断言与当前 UI 命名不一致，已修正为 `Additional charge` / `Unit price`；未改动业务逻辑。
+
+### 候选镜像
+
+- 候选镜像：`new-api:v1.0.0-rc.35-20260908-01-g40d5fd64`。
+- 镜像摘要：`sha256:8deb71a40a9245ae29a457d6f591c409deae69e37c9ff148540d452c00ddc994`，架构 `linux/arm64`。
+- 构建日志：`.backups/new-api/release-20260908-upstream-rc35/build.log`。
+- 采用本项目既定的“上游版本-日期-当日序号-短哈希”不可变标签；本轮没有覆盖旧标签或使用 `latest`。
+
+### 3316 隔离测试环境
+
+- Compose：`.backups/new-api/upgrade-verify-20260908/docker-compose.yml`；应用绑定 `127.0.0.1:3316`，PostgreSQL、Redis、应用 `/data` 卷、网络均为独立资源。
+- `PASSWORD_LOGIN_ENCRYPTION_ENABLED=true` 已显式设置；测试账号只保存在隔离目录 README，不写入 Git、生产配置或本日志。
+- 合成数据：1 个管理员、2 个 API 令牌、4 个渠道、8 个能力记录、19 条 `type=2` 消费日志和 1 条 `type=3` 非消费日志。
+- 演示脚本已在 Git 外修正：显式写入 `abilities`，并按 TokenAuth 约定将库内测试 key 保持为不含 `sk-` 的形式；这避免测试脚本制造无效渠道缓存状态。原先直接插入渠道且缺少 abilities 时触发的 nil-map panic 属于测试 fixture 问题，不是 rc.35 新增回归。
+
+### 回归结果
+
+- 加密登录公钥接口 HTTP 200；RSA-OAEP 登录 HTTP 200；`/api/user/self` 返回测试管理员。
+- 管理员聚合（含趋势）：19 请求、42,400 输入 Token、25,500 输出 Token、67,900 总 Token、752,000 quota、8 个明细、7 个日趋势点。
+- 当前用户聚合在附带恶意 `username=intruder` 时仍严格返回认证用户上述 19 条数据；临时跨用户探针已删除。
+- 闭区间单秒筛选返回 1 请求、3,000 输入、1,800 输出、4,800 总 Token、60,000 quota；`include_trend=false` 不返回趋势；非法时间范围返回 `success=false` 与 `invalid time range`。
+- 未认证 `/api/log/usage-summary` 与 `/api/log/self/usage-summary` 均 HTTP 401；带测试 API 令牌的 `/v1/models` HTTP 200，返回 5 个 OpenAI 模型。
+- 应用连续重启两次；每次 `/api/status` 均为 `success=true`，第二次重启后跨过完整 60 秒渠道同步周期仍为 `running`，无新的 panic/fatal/迁移错误。PostgreSQL、Redis 容器未重建，数据行数保持 `1/2/4/8/19/1`。
+- Go 全量测试/构建、前端 109 个测试文件 903 个测试、TypeScript 类型检查和前端构建均已通过；全仓 Oxlint 仍保留官方及历史既有错误，未扩大修改范围。
+
+### 正式环境边界与下一步
+
+- 生产容器当前仍运行 `new-api:v1.0.0-rc.33-20260906-01-g6bebe63db`，状态 `running + healthy`；生产 Compose、PostgreSQL、Redis、数据卷本轮未触碰。
+- 本轮仅完成源码同步、候选镜像构建和 3316 隔离回归；尚未切换生产，也未对生产数据库执行任何迁移。
+- 下一步可按交接包流程执行生产切换；交接包初始状态必须保持 `pending`，由执行 Agent 回填实际备份、切换、验收和回滚结果。
