@@ -513,3 +513,26 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 生产容器当前仍运行 `new-api:v1.0.0-rc.33-20260906-01-g6bebe63db`，状态 `running + healthy`；生产 Compose、PostgreSQL、Redis、数据卷本轮未触碰。
 - 本轮仅完成源码同步、候选镜像构建和 3316 隔离回归；尚未切换生产，也未对生产数据库执行任何迁移。
 - 下一步可按交接包流程执行生产切换；交接包初始状态必须保持 `pending`，由执行 Agent 回填实际备份、切换、验收和回滚结果。
+
+## 2026-09-08：rc.35 生产切换完成
+
+### 发布对象与备份
+
+- 生产源码 Worktree：`new-api-production`；切换时 `personal/main` HEAD=`5f291fb98528ca4b7912cb5d55310e00352f5b6e`，运行代码对应父提交 `40d5fd64c`。
+- 候选镜像：`new-api:v1.0.0-rc.35-20260908-01-g40d5fd64`，摘要 `sha256:8deb71a40a9245ae29a457d6f591c409deae69e37c9ff148540d452c00ddc994`，架构 `linux/arm64`。
+- 切换前备份目录：`.backups/new-api/release-20260908-rc35-switch/`；PostgreSQL 自定义格式 dump 的 SHA-256 为 `4ffa1fb2f2bb929c0506f3dde3cb3b5038e4d56351237113ddf9e211d364775c`。
+- 交接包：`.backups/new-api/handoffs/new-api-pre-switch-20260908-rc35/`，状态已由执行 Agent 回填为 `completed`。
+
+### 切换边界
+
+- 生产 Compose 仅将 `new-api` 镜像从 rc.33 改为上述 rc.35 候选；`PASSWORD_LOGIN_ENCRYPTION_ENABLED=true`、绝对数据路径、凭据引用、网络、端口和容器名均保持不变。
+- 执行 `docker compose up -d --no-build --pull never --no-deps new-api`，只重建应用容器；PostgreSQL、Redis、Nginx、FRP、数据卷和生产数据均未触碰，也未执行 `down`、`down -v`、`prune` 或重新拉取 `latest`。
+- 本候选不新增数据库迁移；启动日志显示迁移正常完成，未发现迁移失败、FATAL 或 panic。
+
+### 上线验收
+
+- `new-api` 容器为 `running + healthy`，运行镜像摘要与候选一致；PostgreSQL/Redis 容器 ID 与切换前一致。
+- `/api/status` 返回 `success=true`、`setup=true`、`password_login_encryption_enabled=true`、`self_use_mode_enabled=true`。
+- 外部 `/login`、`/usage-summary`、旧 `/usage-logs/common` 返回 HTTP 200；未认证的两个聚合接口与 `/v1/models` 按预期返回 HTTP 401；真实认证态聚合接口已由用户测试通过。
+- 交接反馈阶段未主动制造真实业务请求；切换后客户端实际 `/v1/responses` 请求已观察到 HTTP 200，流式路由正常。
+- 是否回滚：否。候选镜像、rc.33 回滚镜像、Compose 快照和 PostgreSQL dump 均保留，可按交接包中的回滚步骤复核。
