@@ -580,4 +580,29 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 
 - 3317 隔离回归栈目前保留运行，供人工打开页面检查；测试账号和密码只记录在隔离目录 README，不写入 Git 或本日志。
 - 用户确认基本验证通过后，已将 `upgrade/upstream-main-20260910` 快进合入 `personal/main`，并推送 `myfork/personal/main`。本次文档状态修正前的核验提交为 `a0800783a71be3e829bde57e54d5396df061151d`；本条修正形成后续文档提交，当前 refs 以 `git rev-parse` 复核为准。
-- 本轮仍未切换生产；正式发布前仍需单独制作生产交接包、重新备份并执行生产验收。
+- 本轮已完成生产切换与验收；切换证据、备份校验和执行反馈见下方“rc.36 生产切换与验收”章节。
+
+## 2026-09-11：rc.36 生产切换与验收
+
+### 发布对象
+
+- 生产切换交接包：`.backups/new-api/handoffs/new-api-pre-switch-20260911-rc36/`，最终状态 `completed`，未回滚。
+- 候选镜像：`new-api:v1.0.0-rc.36-20260911-01-gb72243cee`。
+- 镜像摘要：`sha256:fb00ad54fdf482891b6ba40e2a4335115eb4e90d6602e72033c35e5f16533566`，架构 `linux/arm64`。
+- 镜像运行代码提交：`b72243cee8bddcf7b83060c4e9cf5ffabff6a6ab`；个人分支的后续提交仅包含发布记录文档。
+
+### 备份与边界
+
+- PostgreSQL dump：`.backups/new-api/handoffs/new-api-pre-switch-20260911-rc36/evidence/postgres-new-api.dump`。
+- PostgreSQL dump SHA-256：`a5fe78e5d5b106774b14ae6f6692d6db4cb35ef0f630987bdf42e906812a8cba`。
+- `new-api-data` 与 `new-api-logs` 切换前归档及 SHA-256 已写入交接包 evidence；切换前 data 为 `0B`，logs 为 `160M`。
+- Compose 相对切换前快照仅变更 New API 镜像行；`PASSWORD_LOGIN_ENCRYPTION_ENABLED=true` 保持不变。
+- 仅重建 `new-api` 应用容器；PostgreSQL、Redis、数据卷、Nginx、FRP 和生产 Worktree 未被重建或修改。
+
+### 验收结果
+
+- `new-api` 为 `running + healthy`，运行摘要与候选一致；PostgreSQL/Redis 容器 ID 与切换前一致。
+- `/api/status` 的 `success`、`setup` 和加密登录字段均为 `true`；数据库迁移完成，无 panic、fatal 或迁移错误。
+- 未认证聚合接口、`/v1/models` 和 `POST /v1/responses` 均按预期返回 `401`；登录、用量统计页和旧日志页面返回 `200`。
+- 用户已在安全认证态下确认管理员聚合、当前用户聚合、有界时间范围以及外部用户名参数隔离验证通过。
+- 候选镜像未回滚，PostgreSQL dump、data/logs 归档和镜像/Compose 快照均保留。
