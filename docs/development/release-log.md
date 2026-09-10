@@ -579,5 +579,5 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 ### 当前状态与下一步
 
 - 3317 隔离回归栈目前保留运行，供人工打开页面检查；测试账号和密码只记录在隔离目录 README，不写入 Git 或本日志。
-- 用户确认基本验证通过后，已将 `upgrade/upstream-main-20260910` 快进合入 `personal/main`，并推送 `myfork/personal/main`；本地与远端均为 `a0800783a71be3e829bde57e54d5396df061151d`。
+- 用户确认基本验证通过后，已将 `upgrade/upstream-main-20260910` 快进合入 `personal/main`，并推送 `myfork/personal/main`。本次文档状态修正前的核验提交为 `a0800783a71be3e829bde57e54d5396df061151d`；本条修正形成后续文档提交，当前 refs 以 `git rev-parse` 复核为准。
 - 本轮仍未切换生产；正式发布前仍需单独制作生产交接包、重新备份并执行生产验收。
