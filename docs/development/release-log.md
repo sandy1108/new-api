@@ -536,3 +536,47 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 外部 `/login`、`/usage-summary`、旧 `/usage-logs/common` 返回 HTTP 200；未认证的两个聚合接口与 `/v1/models` 按预期返回 HTTP 401；真实认证态聚合接口已由用户测试通过。
 - 交接反馈阶段未主动制造真实业务请求；切换后客户端实际 `/v1/responses` 请求已观察到 HTTP 200，流式路由正常。
 - 是否回滚：否。候选镜像、rc.33 回滚镜像、Compose 快照和 PostgreSQL dump 均保留，可按交接包中的回滚步骤复核。
+
+## 2026-09-11：官方主线同步至 rc.36 后的开发环境回归
+
+### 同步范围
+
+- 官方远端：`origin/main=bdef117505247769268b209665fb3ad7554c3da7`，最近发布为 `v1.0.0-rc.36`。
+- 开发 Worktree：`new-api-development`，分支 `upgrade/upstream-main-20260910`。
+- 同步方式：以个人维护基线 `cb904fe12` 合并官方主线，合并提交 `b72243cee8bddcf7b83060c4e9cf5ffabff6a6ab`；父提交为 `cb904fe12` 与 `bdef11750`。
+- `personal/main`、生产 Worktree、生产 Compose、生产容器、生产 PostgreSQL/Redis 与正式数据本轮均未触碰。
+
+### 源码验证
+
+- Go：在 `golang:1.26.1-alpine` 临时容器中执行 `GOWORK=off go test ./...` 与 `GOWORK=off go build ./...`，两项退出码均为 `0`。
+- 前端：Vitest 单进程 `124/124` 测试文件、`1174/1174` 测试通过；`pnpm typecheck` 与 `pnpm build` 通过。
+- 全量前端并发运行曾出现 2 个异步 UI 测试波动失败；两个失败文件单独复跑及整套单进程复跑均通过，未修改测试或业务代码掩盖问题。
+- 本次上游新增的 `options` 主键修复迁移未与个人用量统计改造冲突；个人接口和页面文件均保留。
+
+### 候选镜像
+
+- 镜像：`new-api:v1.0.0-rc.36-20260911-01-gb72243cee`。
+- 本地镜像 ID：`sha256:fb00ad54fdf482891b6ba40e2a4335115eb4e90d6602e72033c35e5f16533566`。
+- 架构：`linux/arm64`；构建使用同步分支完整 `Dockerfile`，未使用开发占位前端镜像。
+
+### 3317 隔离升级回归
+
+- Compose：`/Users/zhangyipeng/MyCodingSpace/ServiceTools/.backups/new-api/upgrade-verify-20260911/docker-compose.yml`。
+- 应用地址：`http://127.0.0.1:3317`；基线镜像为已验证的 rc.35，先初始化旧数据库并写入合成数据，再只替换 New API 应用镜像为本候选。
+- 测试数据卷、PostgreSQL、Redis、网络和容器名均使用 `new-api-upgrade-verify-20260911-*`，未复用 3315、3316、生产资源。
+- 升级前 PostgreSQL dump：`.backups/new-api/upgrade-verify-20260911/postgres-before-upgrade.dump`；SHA-256：`94092c95754c9937a7b535f13f743e2275ca56b26474f71adcde09ac4903d077`。
+- 升级前后关键行数保持：`users=1`、`tokens=2`、`channels=4`、`abilities=8`、`logs=20`、`options=3`；新版本新增的 `audit_logs` 表正常生成。
+- `options` 迁移后存在 `options_pkey PRIMARY KEY (key)`，重复 key 为 `0`；应用连续重启两次，迁移与启动均无错误，PostgreSQL/Redis 容器 ID 未变化。
+
+### 回归结果
+
+- `PASSWORD_LOGIN_ENCRYPTION_ENABLED=true` 下，RSA-OAEP 登录成功；`/api/status` 返回 `success=true`、`setup=true`。
+- 管理员及当前用户聚合均返回合成数据的 `19` 条消费请求、`67,900` 总 Token、`8` 个明细和 `7` 个趋势点；当前用户附带其他用户名参数仍只返回当前用户数据。
+- 未认证的两个聚合接口、`/v1/models` 和 `POST /v1/responses` 均按预期拒绝；带合成 API 令牌的 `/v1/models` 返回 HTTP 200、7 个模型。
+- `/`、`/login`、`/usage-summary`、旧 `/usage-logs/common` 均返回 HTTP 200。
+- 带合成渠道调用 `POST /v1/responses` 会因渠道地址为 `example.invalid` 返回上游请求错误；这是隔离 fixture 的预期边界，不作为真实供应商流量验收结论。
+
+### 当前状态与下一步
+
+- 3317 隔离回归栈目前保留运行，供人工打开页面检查；测试账号和密码只记录在隔离目录 README，不写入 Git 或本日志。
+- 本轮尚未合入 `personal/main`、尚未推送 `myfork`、尚未切换生产；正式发布前仍需用户确认采用该候选镜像，并按生产交接包重新备份和验收。
