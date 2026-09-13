@@ -628,3 +628,26 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 生产镜像 `new-api:v1.0.0-rc.36-20260911-01-gb72243cee` 及摘要 `sha256:fb00ad54fdf482891b6ba40e2a4335115eb4e90d6602e72033c35e5f16533566` 保持不变。
 - `new-api` 仍为 `running + healthy`；PostgreSQL、Redis 状态为 `running`，容器 ID 与清理前一致。
 - Docker 镜像占用由 `13.26GB`（33 个对象）降至 `11.41GB`（26 个对象），约减少 `1.85GB`；本地卷仍为 `9.181GB`。清理后构建缓存报告为 `22.94GB`，本次未执行缓存清理。
+
+## 2026-09-13：临时环境收敛与 BuildKit 清理
+
+### 环境保留策略
+
+- 生产 Compose 项目 `new-api`（`new-api`、PostgreSQL、Redis）和生产 Nginx 保留并持续运行。
+- 最新已验证的 `new-api-upgrade-verify-20260911` 作为永久测试栈保留；其 3 个容器当前停止，应用/数据库/Redis 数据卷保留，便于后续用固定测试账号做升级连续性验证。
+- `.backups/new-api/` 下的 Compose、README、seed、dump 和交接证据文件不删除。
+
+### 清理范围
+
+- 删除 12 个旧 New API 临时容器、2 个已停止的 OpenBiliClaw 容器，以及对应旧栈网络、数据卷和临时构建缓存卷。
+- 删除旧开发标签 `new-api:dev-20260831-01-g5d3ec41`、`new-api:dev-20260831-05-g4c647d353-dirty`、`new-api:dev-20260906-01-g815e5869b`、`new-api:dev-20260907-01-g8e5246350` 和别名 `new-api-dev:local`；与正式 rc 标签共享的底层镜像对象按正式标签继续保留。
+- 删除 OpenBiliClaw 的两个本地镜像、一个悬空镜像及 4 个 Docker 数据卷；该项目的本地 Docker 数据不再保留。
+- 在 `desktop-linux` builder 上执行 `docker builder prune --all --force`，清理全局 BuildKit 缓存；未执行 `docker system prune`。
+
+### 清理验收
+
+- `docker compose ls -a` 仅剩生产 `new-api`、永久测试 `new-api-upgrade-verify-20260911` 和 Nginx 三个项目。
+- 最终容器数为 7（生产 3、永久测试 3、Nginx 1）；生产 `new-api` 仍为 `running + healthy`，生产 PostgreSQL/Redis 未重建。
+- 生产镜像 `new-api:v1.0.0-rc.36-20260911-01-gb72243cee` 摘要仍为 `sha256:fb00ad54fdf482891b6ba40e2a4335115eb4e90d6602e72033c35e5f16533566`；正式 rc/回滚标签均保留。
+- Docker 镜像占用最终为 `4.842GB`，本地卷为 `320.6MB`，BuildKit 缓存为 `0B`。
+- 仍有 8 个无标签、无容器引用的匿名卷（约 `251MB` 可回收），来源无法从 Docker 元数据确认，暂不删除，后续单独审核。
