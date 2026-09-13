@@ -606,3 +606,25 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 未认证聚合接口、`/v1/models` 和 `POST /v1/responses` 均按预期返回 `401`；登录、用量统计页和旧日志页面返回 `200`。
 - 用户已在安全认证态下确认管理员聚合、当前用户聚合、有界时间范围以及外部用户名参数隔离验证通过。
 - 候选镜像未回滚，PostgreSQL dump、data/logs 归档和镜像/Compose 快照均保留。
+
+## 2026-09-13：旧开发/测试镜像清理
+
+### 清理范围与边界
+
+- 经用户确认后，仅删除以下 7 个无容器引用的旧开发/构建镜像对象：
+  - `new-api:dev-20260830-01-g8454082-dirty`
+  - `new-api:dev-20260830-02-g8454082-dirty`
+  - `sha256:a577280c2136fbc9c3dd82cf1bb28451d12883d58eb8c9154a3592774eb2aa10`
+  - `new-api:dev-20260831-02-g812702ba`
+  - `new-api:dev-20260831-02-g812702ba-build`
+  - `new-api:dev-20260831-03-g4c647d35-dirty`
+  - `new-api:dev-20260831-04-g4c647d35-dirty`
+- 未执行 `docker system prune`、未停止或重建生产容器；生产 Compose、PostgreSQL、Redis、本地卷和业务数据均未修改。
+- 构建缓存和本地卷按约定保留，后续如需清理须单独盘点和确认。
+
+### 清理验收
+
+- 7 个目标标签/镜像摘要均已不存在，删除命令逐项返回成功。
+- 生产镜像 `new-api:v1.0.0-rc.36-20260911-01-gb72243cee` 及摘要 `sha256:fb00ad54fdf482891b6ba40e2a4335115eb4e90d6602e72033c35e5f16533566` 保持不变。
+- `new-api` 仍为 `running + healthy`；PostgreSQL、Redis 状态为 `running`，容器 ID 与清理前一致。
+- Docker 镜像占用由 `13.26GB`（33 个对象）降至 `11.41GB`（26 个对象），约减少 `1.85GB`；本地卷仍为 `9.181GB`。清理后构建缓存报告为 `22.94GB`，本次未执行缓存清理。
