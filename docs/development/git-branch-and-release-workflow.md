@@ -2,6 +2,8 @@
 
 交接任务的目录、状态、执行反馈和 Agent 职责另见 [`handoff-management.md`](handoff-management.md)；发包前后应运行其中的交接包扫描器。
 
+每次同步官方主线前，先按 [`upstream-sync-checklist.md`](upstream-sync-checklist.md) 完成基线、远端范围、私有改造保留、迁移演练和开发回归检查；该检查单不替代生产发布审批。
+
 ## 目的
 
 本规范适用于本项目的个人维护分支、上游同步、测试环境和生产发布。目标是同时满足：

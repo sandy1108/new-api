@@ -651,3 +651,49 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 生产镜像 `new-api:v1.0.0-rc.36-20260911-01-gb72243cee` 摘要仍为 `sha256:fb00ad54fdf482891b6ba40e2a4335115eb4e90d6602e72033c35e5f16533566`；正式 rc/回滚标签均保留。
 - Docker 镜像占用最终为 `4.842GB`，本地卷为 `320.6MB`，BuildKit 缓存为 `0B`。
 - 仍有 8 个无标签、无容器引用的匿名卷（约 `251MB` 可回收），来源无法从 Docker 元数据确认，暂不删除，后续单独审核。
+
+## 2026-09-22：同步官方主线至 v1.0.0-rc.40（开发环境）
+
+### 同步范围与分支
+
+- 开发 Worktree：`new-api-development`。
+- 同步分支：`upgrade/upstream-main-20260922`。
+- 同步前基线：`41808c765849c6d71311185e3d3d81c30ff37e91`。
+- 回退分支：`backup/pre-sync-20260922`，指向同一基线。
+- 官方目标：`origin/main=996adffe5165bd5e311e33a03a86b8aede1fe376`，对应官方 `v1.0.0-rc.40`（当前描述为 `relaykit/v0.2.1-3-g996adffe`）。
+- 官方主线相对基线新增 112 个提交；采用 `git merge --no-ff --no-commit origin/main`，自动合并无冲突，生产控制目录和生产源码 Worktree 未修改。
+- 私有日志用量聚合 API、`/usage-summary` Web 页面、API 令牌→渠道→模型三级明细、Postman、测试和项目文档均保留。
+
+### 官方改动重点与兼容性审查
+
+- 认证与安全：Passkey/OAuth/安全验证和加密登录相关能力继续演进；开发回归保持 `PASSWORD_LOGIN_ENCRYPTION_ENABLED=true`。
+- 计费与任务插件：新增/调整预扣费、信任阈值、任务插件同步和插件计费/上传能力，Responses/Relay 转换覆盖 Claude tool_result 媒体、Responses 工具输出和 WebSocket 场景。
+- Web 控制台：模型价格编辑、渠道/设置/移动端布局、主题存储和系统设置等多处修复与体验调整。
+- 对本次 112 个提交主题做了关键词复核，未发现明确以 GPT-6 为主题的专项适配；测试数据中的 `gpt-6` 仅用于模型列表和用量明细回归。
+- 数据库结构回归观察到两项新增/调整：`passkey_credentials.rp_id` 新字段；`task_plugins.icon` 从 `varchar(524288)` 调整为 `text`。
+- 迁移行为验证包括 PostgreSQL 遗留 `prefill_groups.name` 唯一对象转换为 `deleted_at IS NULL` 部分唯一索引；重复名称/key 仍按预期被拒绝，软删除后可复用名称。
+
+### 开发镜像与隔离回归
+
+- 候选镜像：`new-api:v1.0.0-rc.40-20260922-01-g996adffe`。
+- 镜像 ID：`sha256:da4ec1473987d7d8168f37ca25c225b2e949226ad7e1ee17ef1765e0b096e9a2`；架构：`linux/arm64`；构建证据：`.backups/new-api/upgrade-20260922-build.log`。
+- 隔离测试地址：`http://127.0.0.1:3318`；Compose、PostgreSQL、Redis、网络、`data` 和 `postgres` 均位于 `.backups/new-api/upgrade-verify-20260922/`，与生产完全分离。
+- 测试数据库备份：`.backups/new-api/upgrade-verify-20260922/postgres-before-upgrade.dump`；SHA-256：`ce6c44739fb6131fe3611b22b72bd9472f6176352ae83f86172aea04b0241a5e`。
+- 旧镜像 `new-api:v1.0.0-rc.36-20260911-01-gb72243cee` 先初始化并写入合成数据，再切换候选镜像；关键行数保持 users=1、tokens=2、channels=2、logs=5、prefill_groups=1、options=3。
+- 首次切换出现一次官方已有的可恢复 `InitChannelCache` nil-map 重试；应用随后达到 `running + healthy`，连续两次重启未再复现。不能将本轮表述为“全程无 panic”。
+
+### 回归结果
+
+- Go 全量测试：最终退出码 0；根模块构建和 `relaykit` 构建通过。
+- 前端 Vitest：172 个测试文件、2131 个测试通过；Rsbuild 构建通过。
+- 前端类型检查：使用完整源码和独立 Bun 依赖目录复核，退出码 0；宿主机混用 pnpm 依赖的初次检查出现 React 类型树冲突，未修改业务代码。
+- 前端全量 lint 仍有官方既有技术债；同步前基线同样失败，未把无关 lint 清理混入本次同步。私有用量统计相关回归未发现新增错误。
+- HTTP/业务回归：`/api/status` 200 且 `success=true`；登录/加密登录成功；管理员和当前用户聚合接口均返回 5 requests、400 input、200 output、600 total、quota 4000；未认证聚合接口和 `/v1/responses` 返回 401；`/v1/models` 返回 `gpt-test`、`gpt-6`。
+- 测试渠道指向 `example.invalid`，因此带渠道的 Chat Completions/Responses 得到上游 500，这是隔离 fixture 的预期上游错误，不代表本地路由或鉴权失败。
+
+### 当前边界与后续门槛
+
+- 本轮只完成开发分支的官方同步、镜像构建和隔离回归；合并提交完成后仍停在开发分支集成闸门。
+- 未合并到 `personal/main`，未推送 `myfork`，未构建正式生产候选，未修改生产 Compose，未重启生产容器，未触碰生产 PostgreSQL/Redis 或数据卷。
+- 生产提升前仍需单独执行生产备份、候选镜像复核、发布交接和用户确认；本日志不构成生产发布授权。
+- 详细证据目录：`.backups/new-api/upgrade-20260922/` 与 `.backups/new-api/upgrade-verify-20260922/`。
