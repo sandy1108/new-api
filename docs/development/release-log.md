@@ -693,8 +693,8 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 
 ### 当前边界与后续门槛
 
-- 本轮只完成开发分支的官方同步、镜像构建和隔离回归；合并提交完成后仍停在开发分支集成闸门。
-- 未合并到 `personal/main`，未推送 `myfork`，未构建正式生产候选，未修改生产 Compose，未重启生产容器，未触碰生产 PostgreSQL/Redis 或数据卷。
+- 上述两条为开发同步阶段、合入 `personal/main` 前的边界快照；随后已按下方记录完成个人主线合入与 Fork 推送。
+- 即使完成源码同步和推送，本轮仍未构建正式生产候选，未修改生产 Compose，未重启生产容器，未触碰生产 PostgreSQL/Redis 或数据卷。
 - 生产提升前仍需单独执行生产备份、候选镜像复核、发布交接和用户确认；本日志不构成生产发布授权。
 - 详细证据目录：`.backups/new-api/upgrade-20260922/` 与 `.backups/new-api/upgrade-verify-20260922/`。
 
