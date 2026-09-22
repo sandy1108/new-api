@@ -701,6 +701,6 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 ## 2026-09-22：rc.40 同步提交合入 personal/main
 
 - `new-api-production` 的 `personal/main` 已从 `41808c765849c6d71311185e3d3d81c30ff37e91` 快进到 `193294c62e449351d059c5d16981786336b36c89`，复用了已在开发 Worktree 完成验证的同步提交。
-- 当前本地 `personal/main` 相对 `myfork/personal/main` ahead 115 个提交；本轮未执行 push，远端仍保持原状态。
+- 首次推送前本地 `personal/main` 相对 `myfork/personal/main` ahead 116 个提交；普通 push 已成功将远端从 `7dfa5d411a272acd481cf3b4c8407906414265be` 推进到 `5f4f50e393a2e127165303520f5407914dbb0647`。
 - 该操作只更新生产源码 Worktree 的 Git 引用；生产 `docker-compose.yml`、容器、PostgreSQL、Redis、数据卷和运行镜像均未修改。当前正式容器仍运行 `new-api:v1.0.0-rc.36-20260911-01-gb72243cee`，状态 `running + healthy`。
-- 下一道闸门是单独审核并推送 `myfork/personal/main`；推送后若要构建正式候选或切换生产，仍需重新执行生产备份、镜像摘要核对、交接和用户确认。
+- 本条文档收尾提交随后也需推送到 `myfork/personal/main`；推送完成后，若要构建正式候选或切换生产，仍需重新执行生产备份、镜像摘要核对、交接和用户确认。
