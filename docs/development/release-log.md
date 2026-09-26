@@ -772,3 +772,12 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 新增页面原先从布局总入口导入，单文件 Vitest 连带初始化无关系统设置模块而报 `z.object` 未定义；改为直接导入布局组件后，新增页面定向 2/2 用例通过。前端全量 Vitest 仍非全绿：从未修改的 HEAD 导出源码作基线，同一 Bun/锁文件环境下原有渠道测试也在 `z.object` 处以 0 tests 失败。不能把全量测试称为通过，也不能把全部失败归咎于本功能。
 - 采用真实 Bun 构建产物提供 `web/dist/index.html`，只读挂载开发源码并对 Go 容器设 1.4 GiB/1 CPU 硬限额；根模块 `go test -count=1 ./...` 退出码 0，独立 `relaykit` 模块 `go test -count=1 ./...` 退出码 0。临时前端产物卷已删除。`gofmt -l` 与 `git diff --check` 无输出。
 - 以上验证对应尚未提交的功能源码；生产 `new-api` 保持 healthy，生产 Compose、数据库和数据卷未修改。尚未建立正式候选、同镜像测试回归、生产备份或发布交接包。
+
+## 2026-09-27：客户端访问正式候选、隔离回归与生产备份（待切换）
+
+- 功能提交：`8efa34f2639c35d191d1a425f984eabc9dfa9d4c`，分支 `feature/client-access-codex-quota`；仅提交本功能 47 个源码/测试/文档文件，未暂存私人 Compose、依赖目录或无关计划。
+- 当日正式候选序号 `01` 的官方 Dockerfile 构建停在 `go mod download`，人工取消，未生成镜像且序号不复用。序号 `02` 以相同提交的 `git archive` 为精确上下文、官方 Dockerfile 和 host 网络构建成功：`new-api:v1.0.0-rc.40-20260927-02-g8efa34f2`，ID `sha256:52e447b04dfad961b3b01993ac5ce7e640e303c236a0d331071d3e18029190a3`，`linux/arm64`。
+- 永久隔离测试栈切换前保存独立 Compose 与 PostgreSQL dump，后者 SHA-256 `3fef95f01388502e9aee7fa5b6fdab0f2d84c22fc0fa940101f404a7a5aa6cd1`，`pg_restore --list` 可读。测试 Compose 相对快照仅应用镜像一行改变；只重建测试应用，测试 PostgreSQL/Redis 沿用原容器与卷。测试应用实际镜像 ID 与正式候选一致。
+- 测试 `/api/status` 返回 `success=true`、`setup=true`、`password_login_encryption_enabled=true`；`/`、`/login`、新管理页 HTTP 200；未认证的新管理接口、额度接口、旧模型接口均为预期 401。测试库当前 users/tokens/channels/私有凭据/Grant 行数为 `1/2/5/2/2`。该正式候选尚未重新执行带凭据的完整浏览器回归；此前真实管理与上游额度端到端验收是在同功能的 dirty 开发镜像上完成，不能冒充本次正式候选的认证态验收。
+- 生产切换前备份位于 Git 外 `.backups/new-api/pre-switch-client-access-20260927-96uoj5/`：PostgreSQL 自定义格式 dump SHA-256 `18a66242d9cca724dd003dab04ce8f0ab8cd04cee7a541c18a3748dfc016651e`，`data/logs` 归档 SHA-256 `01da3ade6f68d0721f8a996fda8a8edef3cbda90f9e34c78ad6f`，生产 Compose 快照 SHA-256 `e1f58ab36d31b989f1f588ba06ca2b1f8d08d042b25dfe9dace64b3d1b93e7aa`；dump 与归档均经可读性检查。旧生产镜像仍在，生产应用继续运行旧镜像且 healthy；生产 PostgreSQL、Redis、Nginx 与 Compose 未变更。
+- 待执行交接包：`.backups/new-api/handoffs/new-api-client-access-prod-20260927-01/HANDOFF.md`，状态 `pending`。包只授权独立 Agent 在再次核对后切换应用镜像及必要回滚，不授权 Git 合并/推送或数据库恢复。`personal/main` 与功能分支的模拟合并在发布日志发生冲突，且生产源码工作区已有未提交日志；源码合并另行受控处理，不在本包内。
