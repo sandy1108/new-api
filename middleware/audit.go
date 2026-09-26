@@ -3,11 +3,13 @@ package middleware
 import (
 	"bytes"
 	"strconv"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/service/clientaccess"
 
 	"github.com/gin-gonic/gin"
 )
@@ -265,7 +267,8 @@ type accessTokenRequestAudit struct {
 func AccessTokenAudit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		raw, present := authorizationToken(c.GetHeader("Authorization"))
-		if present {
+		// 客户端访问凭据由独立鉴权链处理，不得作为后台 PAT 查库并写入 SQL 日志。
+		if present && !strings.HasPrefix(raw, clientaccess.ClientTokenPrefix) {
 			_, internal, _ := service.ParseDashboardAccessToken(raw)
 			if !internal {
 				user, err := model.ValidateAccessToken(raw)

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "f7d1f4b4-4a4f-4f82-bb23-7ab3b0d7b5a7",
     "name": "New API 自定义接口",
-    "description": "PongAPI / New API 自定义后台接口集合。\n\n当前包含日志用量聚合接口。请在导入后设置 dashboard_token；集合文件不包含任何真实凭据。管理员接口和当前用户接口都使用后台 Authorization，不使用 /v1 relay API Key。",
+    "description": "PongAPI / New API 自定义接口集合。包含日志用量聚合、Root 客户端凭据管理和 Codex 额度读取。集合文件不包含真实凭据；管理身份、客户端凭据和 /v1 模型 Key 不可混用。",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -39,6 +39,28 @@
       "value": "",
       "type": "string",
       "description": "可选，Unix 秒时间戳"
+    },
+    {
+      "key": "client_access_token",
+      "value": "",
+      "type": "string",
+      "description": "创建或轮换时一次性取得的 napi_client_ 凭据；请只填在本机私有环境变量，不导出"
+    },
+    {
+      "key": "client_access_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "client_access_version",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "client_access_channel_id",
+      "value": "17",
+      "type": "string",
+      "description": "从可授权渠道列表选择实际 ID"
     }
   ],
   "item": [
@@ -119,6 +141,23 @@
           },
           "response": []
         }
+      ]
+    },
+    {
+      "name": "New API - 客户端访问凭据与 Codex 额度",
+      "description": "管理请求继承 Root 后台鉴权；末尾的额度请求使用独立客户端凭据。完整凭据只在创建/轮换响应出现一次。",
+      "item": [
+        { "name": "Root：列出 Scope", "request": { "method": "GET", "url": "{{new_api_base_url}}/api/client-access/scopes" } },
+        { "name": "Root：列出 Codex 可授权渠道", "request": { "method": "GET", "url": "{{new_api_base_url}}/api/client-access/scopes/codex.quota.read/resources" } },
+        { "name": "Root：列出客户端凭据", "request": { "method": "GET", "url": "{{new_api_base_url}}/api/client-access/credentials?page=1&limit=50" } },
+        { "name": "Root：查看凭据与 Grants", "request": { "method": "GET", "url": "{{new_api_base_url}}/api/client-access/credentials/{{client_access_id}}" } },
+        { "name": "Root：创建客户端凭据", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"name\":\"AI Dashboard\",\"expired_time\":-1,\"grants\":[{\"scope\":\"codex.quota.read\",\"resource_id\":\"{{client_access_channel_id}}\"}]}" }, "url": "{{new_api_base_url}}/api/client-access/credentials", "description": "完整 token 只在本次响应中出现；不要写入集合或导出文件。" } },
+        { "name": "Root：替换 Grants", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"version\":{{client_access_version}},\"grants\":[{\"scope\":\"codex.quota.read\",\"resource_id\":\"{{client_access_channel_id}}\"}]}" }, "url": "{{new_api_base_url}}/api/client-access/credentials/{{client_access_id}}/grants" } },
+        { "name": "Root：轮换凭据", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"version\":{{client_access_version}}}" }, "url": "{{new_api_base_url}}/api/client-access/credentials/{{client_access_id}}/rotate" } },
+        { "name": "Root：禁用凭据", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"version\":{{client_access_version}}}" }, "url": "{{new_api_base_url}}/api/client-access/credentials/{{client_access_id}}/disable" } },
+        { "name": "Root：启用凭据", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"version\":{{client_access_version}}}" }, "url": "{{new_api_base_url}}/api/client-access/credentials/{{client_access_id}}/enable" } },
+        { "name": "Root：永久撤销凭据", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"version\":{{client_access_version}}}" }, "url": "{{new_api_base_url}}/api/client-access/credentials/{{client_access_id}}/revoke" } },
+        { "name": "客户端：读取 Codex 额度", "request": { "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{client_access_token}}", "type": "string" }] }, "method": "GET", "url": "{{new_api_base_url}}/api/client-access/v1/codex/usage", "description": "不要使用 dashboard_token 或 /v1 模型 API Key。" } }
       ]
     }
   ]

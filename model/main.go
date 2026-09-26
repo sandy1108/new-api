@@ -389,7 +389,7 @@ func migrateDB() error {
 			return err
 		}
 	}
-	return nil
+	return MigrateClientAccessTables(DB)
 }
 
 func migrateLOGDB() error {

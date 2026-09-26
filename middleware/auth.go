@@ -17,6 +17,7 @@ import (
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/service/authz"
+	"github.com/QuantumNous/new-api/service/clientaccess"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/gin-gonic/gin"
@@ -159,6 +160,10 @@ func classifyDashboardCredential(c *gin.Context) (*model.UserBase, service.AuthI
 	raw, ok := authorizationToken(c.GetHeader("Authorization"))
 	if !ok {
 		return nil, service.AuthIdentity{}, dashboardCredentialUnmatched, nil
+	}
+	// 客户端凭据绝不进入后台 PAT 查询；避免 ORM 错误日志包含明文凭据。
+	if strings.HasPrefix(raw, clientaccess.ClientTokenPrefix) {
+		return nil, service.AuthIdentity{}, dashboardCredentialPAT, service.ErrAuthTokenInvalid
 	}
 	identity, internal, err := service.ParseDashboardAccessToken(raw)
 	if internal {
