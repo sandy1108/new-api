@@ -781,3 +781,22 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 测试 `/api/status` 返回 `success=true`、`setup=true`、`password_login_encryption_enabled=true`；`/`、`/login`、新管理页 HTTP 200；未认证的新管理接口、额度接口、旧模型接口均为预期 401。测试库当前 users/tokens/channels/私有凭据/Grant 行数为 `1/2/5/2/2`。该正式候选尚未重新执行带凭据的完整浏览器回归；此前真实管理与上游额度端到端验收是在同功能的 dirty 开发镜像上完成，不能冒充本次正式候选的认证态验收。
 - 生产切换前备份位于 Git 外 `.backups/new-api/pre-switch-client-access-20260927-96uoj5/`：PostgreSQL 自定义格式 dump SHA-256 `18a66242d9cca724dd003dab04ce8f0ab8cd04cee7a541c18a3748dfc016651e`，`data/logs` 归档 SHA-256 `01da3ade6f68d0721f8a996fda8a8edef3cbda90f9e34c78ad6f`，生产 Compose 快照 SHA-256 `e1f58ab36d31b989f1f588ba06ca2b1f8d08d042b25dfe9dace64b3d1b93e7aa`；dump 与归档均经可读性检查。旧生产镜像仍在，生产应用继续运行旧镜像且 healthy；生产 PostgreSQL、Redis、Nginx 与 Compose 未变更。
 - 待执行交接包：`.backups/new-api/handoffs/new-api-client-access-prod-20260927-01/HANDOFF.md`，状态 `pending`。包只授权独立 Agent 在再次核对后切换应用镜像及必要回滚，不授权 Git 合并/推送或数据库恢复。`personal/main` 与功能分支的模拟合并在发布日志发生冲突，且生产源码工作区已有未提交日志；源码合并另行受控处理，不在本包内。
+
+## 2026-10-03：同步官方 rc.41（开发分支本地合并，未发布）
+
+- 仅在 `new-api-development` 的 `upgrade/upstream-main-20261003` 操作；从私有功能基线 `505bfa3d4008faae89ab5781d41e0b665b8a2e88` 合并官方 `v1.0.0-rc.41`（`2035a82aeb5414253a728bd937d4b8f97aa99b9b`），不包含标签后的提交。回退分支 `backup/pre-sync-20261003-feature` 指向原基线；本地合并不等于合入 `personal/main` 或推送。
+- 唯一显式冲突是官方删除的旧后台令牌卡片测试；旧组件也已删除，因此按官方新测试结构移除旧测试。新增独立私有 PAT 路由声明：用量汇总分别要求 `log:read` / `usage:read`，私有凭据管理仅限后台会话；独立客户端额度接口不经过官方 PAT，加入覆盖测试的豁免清单。
+- 合并前的部分 Go 测试通过；合并后的首轮测试中 `controller`、`middleware`、`model`、`service/clientaccess`、`service/authz` 和 relay 相关包通过，`router` 仅因私有路由未声明而失败，已做针对性修复但**尚未复测**。独立 `relaykit` 被误写入主模块命令，命令本身报模块范围错误，不视为代码失败。
+- 前端既有 `web/node_modules` 混有两份 React 解析路径。定向 Vitest 为 20 通过、2 个 `Invalid hook call` 失败；`pnpm exec tsgo -b` 在未改的 `calendar.tsx` 因两份 React 类型冲突失败。这些结果不构成干净依赖环境下的前端回归结论，未覆盖或删除宿主机依赖。
+- 当前沙箱无法连接 Docker；申请运行限额 1.5 GiB 的临时测试容器时，自动审批服务返回 503，命令未执行。不得绕过审批。完整 Go/relaykit 复测、Bun 前端构建、独立测试数据库迁移与运行回归均待补，未构建镜像或切换任何容器。
+- 数据库静态检查：官方新增 `user_access_tokens` 表及 `options.LegacyAccessTokenRetireAt`（首次升级后 30 天），暂未删除旧 `users.access_token` 列；私有两张 `client_access_` 表仍独立。旧后台令牌退役与私有接口权限需要在隔离测试和正式发布前继续验证。生产 Compose、数据库/Redis、容器及 `personal/main` 均未触碰，未跟踪文件原样保留。
+
+### 权限恢复后的开发与隔离回归
+
+- Go 根模块 `go test -p 2 ./...`、独立 `relaykit` 的 `go test -p 2 ./...` 均退出码 0；私有路由权限覆盖测试通过。完整 Dockerfile 的前端 Rsbuild 与 Go 编译均通过。Bun 类型检查首次因只构建 `web` 阶段缺少仓库根目录测试 fixture 报错；把 `pkg` 只读挂载到正确位置后退出码 0。修改过的 Go 文件 `gofmt -l`、`git diff --cached --check` 无输出。
+- 使用暂存区导出的干净构建上下文，排除了未跟踪文件和宿主机混合 `node_modules`。开发镜像：`new-api:dev-v1.0.0-rc.41-20261003-01-g505bfa3d-dirty`，ID `sha256:de68ab60dc22240f980f1a490264d19fd76b00988cb5c1547eba370f914b25d1`，`linux/arm64`。标签带 `dirty`，不能作为可复现正式发布候选。
+- 前端定向 Vitest 在干净 Bun 依赖下、`TZ=Asia/Shanghai` 运行：6 个文件、27 个用例通过；另 3 个组件测试文件在加载阶段以 `z.object` / `z.string` 未定义失败，未执行用例。用官方 rc.41 原样源码复跑 2 个安全组件测试，得到相同 `z.string` 失败；用合并前私有 HEAD 复跑统计页测试，得到相同 `z.object` 失败，确认这 3 个失败在对应基线已存在。全量 lint 为 181 error、66 warning，官方 rc.41 原样源码计数完全相同。未把这些失败伪报为通过，也未顺手修改无关前端代码；宿主机先前重复 React 导致的结果不用于本次隔离验收。
+- 永久测试栈 `new-api-upgrade-verify-20260911` 原本停止；只启动原有测试 PostgreSQL/Redis，先备份测试 Compose、PostgreSQL dump 和应用 `/data`，再仅把测试应用镜像切到上述开发镜像。备份位于 Git 外 `.backups/new-api/rc41-test-pre-20261003-01/`，dump SHA-256 `f58b7be530cef69abbaa05251aaef121da264004a580aa102dec2a5749dd6ee0`，`pg_restore -l` 可读；切换前后 Compose 仅镜像一行不同。测试数据库与生产完全分离，没有执行 `down -v`。
+- 测试旧数据升级前后 `users/tokens/channels/client_access_credentials/client_access_grants=1/2/5/2/2` 不变；新建 `user_access_tokens` 表及 4 个索引和一条 `LegacyAccessTokenRetireAt` 选项，旧 `users.access_token` 列仍在，私有两表仍在。测试应用单独重启后，行数与退役时间戳 `1793633498` 保持不变，未见迁移错误。测试 Compose 无 healthcheck，只确认进程 running、`/api/status.success=true`、加密登录开关为 true。
+- 测试环境的 `/`、`/login`、`/usage-summary`、`/system-settings/client-access` 均 HTTP 200；未认证的聚合、私有凭据、模型和 Responses 接口均 401。使用测试账号完成一次 RSA 加密登录，登录后的 `/api/user/self`、`/api/user/access_tokens`、管理员/个人聚合、私有凭据列表均 HTTP 200 且 `success=true`；凭据、会话 Token 和响应数据未输出或写入文档。尚未以已有私有客户端凭据验证真实 Codex 上游额度，也未对新 PAT 的每种 scope 做端到端授权矩阵测试。
+- 最终复核生产 `new-api` 仍为原 `rc.40` 镜像且 running + healthy，生产 PostgreSQL/Redis 容器 ID 未变化。当前只完成开发分支本地合并与测试栈回归；未合入 `personal/main`、未推送 Fork、未制作正式候选或发布生产。
