@@ -800,3 +800,13 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 测试旧数据升级前后 `users/tokens/channels/client_access_credentials/client_access_grants=1/2/5/2/2` 不变；新建 `user_access_tokens` 表及 4 个索引和一条 `LegacyAccessTokenRetireAt` 选项，旧 `users.access_token` 列仍在，私有两表仍在。测试应用单独重启后，行数与退役时间戳 `1793633498` 保持不变，未见迁移错误。测试 Compose 无 healthcheck，只确认进程 running、`/api/status.success=true`、加密登录开关为 true。
 - 测试环境的 `/`、`/login`、`/usage-summary`、`/system-settings/client-access` 均 HTTP 200；未认证的聚合、私有凭据、模型和 Responses 接口均 401。使用测试账号完成一次 RSA 加密登录，登录后的 `/api/user/self`、`/api/user/access_tokens`、管理员/个人聚合、私有凭据列表均 HTTP 200 且 `success=true`；凭据、会话 Token 和响应数据未输出或写入文档。尚未以已有私有客户端凭据验证真实 Codex 上游额度，也未对新 PAT 的每种 scope 做端到端授权矩阵测试。
 - 最终复核生产 `new-api` 仍为原 `rc.40` 镜像且 running + healthy，生产 PostgreSQL/Redis 容器 ID 未变化。当前只完成开发分支本地合并与测试栈回归；未合入 `personal/main`、未推送 Fork、未制作正式候选或发布生产。
+
+## 2026-10-04：rc.41 合并提交的精确开发镜像与隔离测试切换
+
+- 源码为 `new-api-development` 的 `upgrade/upstream-main-20261003` 分支、merge commit `03966dabb72a88c3e4762016017f769286cdfb4d`；使用 `git archive HEAD` 作为 Docker 构建上下文，不包含工作区未跟踪文件。完整仓库 Dockerfile 构建退出码 0。
+- 当日开发镜像序号 `01`：`new-api:dev-20261004-01-g03966dabb`，ID `sha256:53d1c811c39de155d81dce5e5e49b8fc95161248a60a5e01bb7540101ba8aa70`，`linux/arm64`，创建时间 2026-10-04 00:08:39（Asia/Shanghai）；镜像 revision 标签与提交全 SHA 一致。该 tag 是开发镜像，不是正式发布候选。
+- 构建前 Docker 虚拟机内存上限约 4 GB；构建完成后最初没有切换容器，旧测试应用仍使用 `sha256:de68ab60...` dirty 镜像。随后经用户确认，才进入下列测试切换步骤；构建阶段的旧容器响应不计入新镜像运行回归。
+- 切换前备份位于 Git 外 `.backups/new-api/rc41-commit-test-pre-20261004-01/`：测试 Compose 快照 SHA-256 `0f2a6245aaa909cc6d05cdf407e5e3cc61cbef560ebc44500450a8cf73591e6e`；PostgreSQL 自定义格式 dump SHA-256 `701f81c4aeda8c2ce709fb11e84ac5ed820f87a0e345db94298f82d53d9f86dd`，`pg_restore --list` 可读；应用 `/data` 归档 SHA-256 `cd0521587b0350c6dbea854b56ba516c84bfdfd96b2e490d6e58c31f4d07512d`，`tar -tzf` 可读。备份目录权限为仅当前用户可进入，未备份或触碰生产数据。
+- 测试 Compose 相对快照只修改第 6 行应用镜像 tag；`docker compose config --quiet` 通过。使用 `up -d --no-build --pull never --no-deps --force-recreate new-api` 仅重建测试应用，未重建测试 PostgreSQL/Redis。新应用容器实际镜像 ID 与上述精确开发镜像相同，状态 running、重启次数 0；测试 PostgreSQL 与 Redis 容器 ID 保持为 `b1a866ac...` / `6db995c4...`。
+- 新镜像下 `127.0.0.1:3317/api/status` 返回 `success=true`、`setup=true`、`password_login_encryption_enabled=true`；`/`、`/login`、`/usage-summary`、`/system-settings/client-access` 均 HTTP 200；未认证的用量汇总、私有凭据、官方 PAT、客户端额度、模型与 Responses 接口均按预期返回 401。测试库 `users/tokens/channels/client_access_credentials/client_access_grants/user_access_tokens` 行数为 `1/2/5/2/2/0`；启动后日志未检出 panic、fatal、迁移失败或数据库错误。本轮尚未重新执行登录态接口、真实 Codex 上游额度或 PAT scope 矩阵，不能宣称完整业务验收。
+- 旧测试镜像 `sha256:de68ab60dc22240f980f1a490264d19fd76b00988cb5c1547eba370f914b25d1` 和 Compose 快照均保留，可将测试镜像行恢复后只重建测试应用；未发生回滚。生产维持 rc.40，本次未修改生产 Compose、容器或数据，也未合入 `personal/main`、推送 Fork 或制作正式候选。
