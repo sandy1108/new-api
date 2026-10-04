@@ -704,3 +704,28 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 首次推送前本地 `personal/main` 相对 `myfork/personal/main` ahead 116 个提交；普通 push 已成功将远端从 `7dfa5d411a272acd481cf3b4c8407906414265be` 推进到 `5f4f50e393a2e127165303520f5407914dbb0647`。
 - 该操作只更新生产源码 Worktree 的 Git 引用；生产 `docker-compose.yml`、容器、PostgreSQL、Redis、数据卷和运行镜像均未修改。当前正式容器仍运行 `new-api:v1.0.0-rc.36-20260911-01-gb72243cee`，状态 `running + healthy`。
 - 本条文档收尾提交已随后续 push 推送到 `myfork/personal/main`；推送后已独立核对本地与远端 refs 一致。若要构建正式候选或切换生产，仍需重新执行生产备份、镜像摘要核对、交接和用户确认。
+
+## 2026-09-23：rc.40 生产切换与最终验收
+
+### 发布对象与边界
+
+- 生产切换交接包：`.backups/new-api/handoffs/new-api-pre-switch-20260922-rc40/`，最终状态 `completed`，未回滚。
+- 候选镜像：`new-api:v1.0.0-rc.40-20260922-01-g996adffe`。
+- 候选镜像摘要：`sha256:da4ec1473987d7d8168f37ca25c225b2e949226ad7e1ee17ef1765e0b096e9a2`，架构 `linux/arm64`。
+- 回滚镜像保留：`new-api:v1.0.0-rc.36-20260911-01-gb72243cee`，摘要 `sha256:fb00ad54fdf482891b6ba40e2a4335115eb4e90d6602e72033c35e5f16533566`。
+- 生产 Compose 仅将 `new-api` 镜像行从 rc.36 替换为 rc.40；`PASSWORD_LOGIN_ENCRYPTION_ENABLED=true` 保持不变。
+- 仅重建 `new-api` 应用容器；PostgreSQL、Redis、数据卷、Nginx、FRP 和生产源码 Worktree 未被重建或修改。
+
+### 备份与验收证据
+
+- PostgreSQL 自定义格式 dump：`.backups/new-api/handoffs/new-api-pre-switch-20260922-rc40/evidence/postgres-new-api.dump`。
+- PostgreSQL dump SHA-256：`62d0d86790878a52fdfedcd2ef2816fd0b23532550113fea6c304dfba9408647`。
+- 切换前 data/logs 归档 SHA-256：`new-api-data.before.tar.gz`=`18754bfc3ed5b42fc7915483866680a6c6f453e73572d4456ecca6fbf44063f0`；`new-api-logs.before.tar.gz`=`bddd94f24a4ce2d3bf5c227d55caefe197913f7562cdc2b84f5da7f8d3ae946b`。
+- 上述 dump 与归档在 2026-09-23 最终验收时重新计算并匹配记录值；生产 PostgreSQL/Redis 容器 ID、镜像和挂载边界与切换前一致。
+
+### 运行与业务验收
+
+- 生产 `new-api` 当前为 `running + healthy`，候选镜像摘要匹配；`/api/status` 返回 `success=true`，加密登录字段为 `true`。
+- 未认证的聚合接口、`/v1/models` 和 `POST /v1/responses` 均按预期返回 401；登录、`/usage-summary` 和旧 `/usage-logs/common` 页面返回 200。
+- 截至最终验收的最近 18 小时生产日志观察到认证态管理员有界时间范围聚合请求返回 200、真实 `POST /v1/responses` 返回 200 共 58 次、`GET /v1/models` 返回 200 共 386 次；最近 30 分钟无 FATAL、panic、迁移失败或 `InitChannelCache` 重试错误。
+- 用户已完成人工认证态用量统计试用并确认可用；执行 Agent 未读取或记录 Token、密码、Cookie 或完整响应正文。
