@@ -810,3 +810,22 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 测试 Compose 相对快照只修改第 6 行应用镜像 tag；`docker compose config --quiet` 通过。使用 `up -d --no-build --pull never --no-deps --force-recreate new-api` 仅重建测试应用，未重建测试 PostgreSQL/Redis。新应用容器实际镜像 ID 与上述精确开发镜像相同，状态 running、重启次数 0；测试 PostgreSQL 与 Redis 容器 ID 保持为 `b1a866ac...` / `6db995c4...`。
 - 新镜像下 `127.0.0.1:3317/api/status` 返回 `success=true`、`setup=true`、`password_login_encryption_enabled=true`；`/`、`/login`、`/usage-summary`、`/system-settings/client-access` 均 HTTP 200；未认证的用量汇总、私有凭据、官方 PAT、客户端额度、模型与 Responses 接口均按预期返回 401。测试库 `users/tokens/channels/client_access_credentials/client_access_grants/user_access_tokens` 行数为 `1/2/5/2/2/0`；启动后日志未检出 panic、fatal、迁移失败或数据库错误。本轮尚未重新执行登录态接口、真实 Codex 上游额度或 PAT scope 矩阵，不能宣称完整业务验收。
 - 旧测试镜像 `sha256:de68ab60dc22240f980f1a490264d19fd76b00988cb5c1547eba370f914b25d1` 和 Compose 快照均保留，可将测试镜像行恢复后只重建测试应用；未发生回滚。生产维持 rc.40，本次未修改生产 Compose、容器或数据，也未合入 `personal/main`、推送 Fork 或制作正式候选。
+
+## 2026-10-04：rc.41 精确开发镜像认证态业务回归
+
+- 目标仅为 `127.0.0.1:3317` 永久隔离测试栈，镜像仍为 `new-api:dev-20261004-01-g03966dabb` / `sha256:53d1c811c39de155d81dce5e5e49b8fc95161248a60a5e01bb7540101ba8aa70`。测试账户凭据仅内存使用，脚本位于 Git 外备份目录，未输出 Token、Cookie、密码或额度正文。
+- 实际接口通过：明文密码拒绝、RSA-OAEP 加密登录、会话 JWT、Cookie 刷新并保持 SID；管理员/个人有界时间用量汇总及趋势、至少两个 API 令牌的数据层级与汇总一致性、个人接口忽略伪造用户名、非法时间参数拒绝。
+- 私有客户端接口通过：Scope/资源/列表排除上游秘密；临时凭据创建、去除/恢复授权、禁用/启用、轮换、旧 Token 失效、撤销后失效。真实 Codex 上游额度返回 HTTP 200，再次查询命中缓存；即使有缓存，去除授权仍立即返回 403。客户端凭据不能调用后台管理或模型接口。临时客户端凭据均已通过正常 API 撤销。
+- 官方 PAT 接口已通过：目录与列表、创建要求安全证明、加密密码 step-up、安全证明不可重放；`log:read` 可访问私有管理员聚合而不能访问个人聚合；后台 PAT 不能管理私有客户端凭据（`AUTH_SESSION_REQUIRED`）、不能调用客户端额度或模型接口。
+- 首轮脚本误把 OpenAI 风格 401 要求为 `success:false`，导致断言失败；修正测试断言后该检查通过，没有修改服务来适配测试。
+- 第二轮剩余 PAT scope 修改及清理遭遇 HTTP 429。已核对官方关键接口共享 IP 固定窗口 `20 次 / 1200 秒`（登录、刷新、verify、PAT 写操作、退出与日志接口），不是服务崩溃。按隔离 Redis 的窗口自然过期补跑剩余用例，未删除计数、关闭限流或重启容器；最终结果另行追加，当前不把尚未执行的检查算通过。
+- 浏览器首页与登录页实际渲染正常；登录后的统计层级、趋势及官方新 PAT 权限编辑的视觉/交互效果仍需浏览器人工复核，HTTP 200 不替代 UI 验收。
+- `personal/main` 集成预检仅发现发布日志冲突；生产源码 worktree 的发布日志还有既有未提交追加记录。后续合并必须保存两边记录，不覆盖或暂存私人生产 Compose。本轮未合入个人稳定分支、提交/推送新文档、构建正式候选或切换生产。
+
+### 限流窗口后的补测与清理
+
+- 隔离测试关键接口窗口自然过期后，运行 Git 外 `verify-authenticated.mjs --remaining`，退出码 0，29 条检查全部 PASS；本次补测不再访问 Codex 上游，前一轮真实额度 200 与缓存验证结果保留。
+- 加密登录、step-up 创建/修改/撤销 PAT 均通过。将同一个 PAT 从 `log:read` 改为 `usage:read` 后，管理员聚合立即为 403 `ACCESS_TOKEN_SCOPE_DENIED`，个人聚合为 200；撤销后立即为 401 `AUTH_UNAUTHORIZED`。
+- 前一轮因 429 遗留的临时 PAT 通过正常 API 撤销，精确匹配本轮自动化的旧会话也已撤销；新补测 PAT 已撤销，最终 PAT 列表无 `rc41-auto-` 临时记录。当前补测会话退出成功，旧会话 JWT 再调用为 401 `AUTH_SESSION_REVOKED`。用户原有凭据、浏览器会话和更早会话未撤销。
+- 本轮核心 API 业务回归完成，未发现本次同步引入的接口回归；后台页面视觉/交互、付费模型真实生成请求并未在本轮执行，不把它们标为通过。前端已有导入/lint 技术债仍按此前记录保留，不声称全量前端测试全绿。
+- 后续按独立授权处理：保存生产源码目录既有日志、合并开发分支、构建正式候选、将同一候选放测试环境复验、生产备份与切换交接；当前生产仍为 rc.40。
