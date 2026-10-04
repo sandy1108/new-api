@@ -25,6 +25,7 @@ import {
   Settings,
   Shield,
   ShieldAlert,
+  KeyRound,
   Wrench,
 } from 'lucide-react'
 
@@ -36,6 +37,8 @@ import { getOperationsSectionNavItems } from '@/features/system-settings/operati
 import { getPolicySectionNavItems } from '@/features/system-settings/request-policies/section-registry'
 import { getSecuritySectionNavItems } from '@/features/system-settings/security/section-registry.tsx'
 import { getSiteSectionNavItems } from '@/features/system-settings/site/section-registry.tsx'
+import { ROLE } from '@/lib/roles'
+import { useAuthStore } from '@/stores/auth-store'
 
 import type { NavGroup, SidebarView } from '../types'
 
@@ -47,6 +50,9 @@ import type { NavGroup, SidebarView } from '../types'
  * scopes the items as "administration" actions.
  */
 function getSystemSettingsNavGroups(t: TFunction): NavGroup[] {
+  // 嵌套设置视图不走 useSidebarView 的通用角色过滤，因此在此处应用 requiredRole。
+  const role = useAuthStore.getState().auth.user?.role ?? ROLE.GUEST
+
   return [
     {
       id: 'system-administration',
@@ -61,6 +67,12 @@ function getSystemSettingsNavGroups(t: TFunction): NavGroup[] {
           title: t('Authentication'),
           icon: Shield,
           items: getAuthSectionNavItems(t),
+        },
+        {
+          title: '客户端访问凭据',
+          icon: KeyRound,
+          url: '/system-settings/client-access',
+          requiredRole: ROLE.SUPER_ADMIN,
         },
         {
           title: t('Billing & Payment'),
@@ -92,7 +104,9 @@ function getSystemSettingsNavGroups(t: TFunction): NavGroup[] {
           icon: Wrench,
           items: getOperationsSectionNavItems(t),
         },
-      ],
+      ].filter(
+        (item) => item.requiredRole === undefined || role >= item.requiredRole
+      ),
     },
   ]
 }

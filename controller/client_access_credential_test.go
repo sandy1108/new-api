@@ -1,0 +1,121 @@
+package controller
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/service/clientaccess"
+	"github.com/gin-gonic/gin"
+	"github.com/glebarez/sqlite"
+	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
+)
+
+func TestClientAccessManagementCreateListsOnlyMaskedCredentialAndRejectsStaleVersion(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.Channel{}))
+	require.NoError(t, model.MigrateClientAccessTables(db))
+	originalDB := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = originalDB })
+	require.NoError(t, db.Create(&model.Channel{Id: 17, Name: "codex", Type: constant.ChannelTypeCodex,
+		Status: common.ChannelStatusEnabled, Key: `{"access_token":"secret-access","account_id":"secret-account"}`}).Error)
+
+	router := gin.New()
+	router.Use(func(c *gin.Context) { c.Set("id", 1); c.Next() })
+	router.POST("/credentials", CreateClientAccessCredential)
+	router.GET("/credentials", ListClientAccessCredentials)
+	router.GET("/credentials/:id", GetClientAccessCredential)
+	router.GET("/scopes", GetClientAccessScopes)
+	router.GET("/scopes/:scope/resources", GetClientAccessScopeResources)
+	router.PUT("/credentials/:id/grants", UpdateClientAccessGrants)
+	router.POST("/credentials/:id/rotate", RotateClientAccessCredential)
+	router.POST("/credentials/:id/disable", DisableClientAccessCredential)
+	router.POST("/credentials/:id/enable", EnableClientAccessCredential)
+	router.POST("/credentials/:id/revoke", RevokeClientAccessCredential)
+
+	perform := func(method, path string, body any) *httptest.ResponseRecorder {
+		t.Helper()
+		encoded, err := json.Marshal(body)
+		require.NoError(t, err)
+		req := httptest.NewRequest(method, path, bytes.NewReader(encoded))
+		req.Header.Set("Content-Type", "application/json")
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+		return resp
+	}
+	created := perform(http.MethodPost, "/credentials", map[string]any{
+		"name": "Android", "expired_time": -1,
+		"grants": []map[string]string{{"scope": "codex.quota.read", "resource_id": "17"}},
+	})
+	require.Equal(t, http.StatusOK, created.Code)
+	var createdBody struct {
+		Data struct {
+			Token      string `json:"token"`
+			Credential struct {
+				Id      int   `json:"id"`
+				Version int64 `json:"version"`
+			} `json:"credential"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(created.Body.Bytes(), &createdBody))
+	require.NotEmpty(t, createdBody.Data.Token)
+	require.NotContains(t, created.Body.String(), "secret-access")
+	require.NotContains(t, created.Body.String(), "token_hash")
+
+	listed := perform(http.MethodGet, "/credentials", nil)
+	require.Equal(t, http.StatusOK, listed.Code)
+	require.NotContains(t, listed.Body.String(), createdBody.Data.Token)
+	require.NotContains(t, listed.Body.String(), "token_hash")
+	require.NotContains(t, listed.Body.String(), "secret-access")
+	detail := perform(http.MethodGet, "/credentials/1", nil)
+	require.Equal(t, http.StatusOK, detail.Code)
+	require.Contains(t, detail.Body.String(), `"resource_id":"17"`)
+	require.NotContains(t, detail.Body.String(), createdBody.Data.Token)
+	require.NotContains(t, detail.Body.String(), "token_hash")
+	require.NotContains(t, detail.Body.String(), "secret-access")
+
+	stale := perform(http.MethodPut, "/credentials/1/grants", map[string]any{
+		"version": 999, "grants": []map[string]string{},
+	})
+	require.Equal(t, http.StatusConflict, stale.Code)
+
+	scopes := perform(http.MethodGet, "/scopes", nil)
+	require.Equal(t, http.StatusOK, scopes.Code)
+	require.Contains(t, scopes.Body.String(), "codex.quota.read")
+	require.NotContains(t, scopes.Body.String(), "validator")
+	resources := perform(http.MethodGet, "/scopes/codex.quota.read/resources", nil)
+	require.Equal(t, http.StatusOK, resources.Code)
+	require.Contains(t, resources.Body.String(), `"id":17`)
+	require.NotContains(t, resources.Body.String(), "secret-access")
+
+	rotate := perform(http.MethodPost, "/credentials/1/rotate", map[string]any{"version": 1})
+	require.Equal(t, http.StatusOK, rotate.Code)
+	var rotated struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rotate.Body.Bytes(), &rotated))
+	require.NotEmpty(t, rotated.Data.Token)
+	_, err = clientaccess.NewStore(db).FindCredentialByToken(createdBody.Data.Token)
+	require.Error(t, err)
+
+	disabled := perform(http.MethodPost, "/credentials/1/disable", map[string]any{"version": 2})
+	require.Equal(t, http.StatusOK, disabled.Code)
+	_, err = clientaccess.NewStore(db).FindCredentialByToken(rotated.Data.Token)
+	require.Error(t, err)
+	require.Equal(t, http.StatusOK, perform(http.MethodPost, "/credentials/1/enable", map[string]any{"version": 3}).Code)
+	_, err = clientaccess.NewStore(db).FindCredentialByToken(rotated.Data.Token)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, perform(http.MethodPost, "/credentials/1/revoke", map[string]any{"version": 4}).Code)
+	require.Equal(t, http.StatusConflict, perform(http.MethodPost, "/credentials/1/enable", map[string]any{"version": 5}).Code)
+}

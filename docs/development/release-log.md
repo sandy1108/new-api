@@ -729,3 +729,141 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 未认证的聚合接口、`/v1/models` 和 `POST /v1/responses` 均按预期返回 401；登录、`/usage-summary` 和旧 `/usage-logs/common` 页面返回 200。
 - 截至最终验收的最近 18 小时生产日志观察到认证态管理员有界时间范围聚合请求返回 200、真实 `POST /v1/responses` 返回 200 共 58 次、`GET /v1/models` 返回 200 共 386 次；最近 30 分钟无 FATAL、panic、迁移失败或 `InitChannelCache` 重试错误。
 - 用户已完成人工认证态用量统计试用并确认可用；执行 Agent 未读取或记录 Token、密码、Cookie 或完整响应正文。
+
+## 2026-09-25：客户端访问凭据与 Codex 额度接口开发验证（未发布）
+
+- 开发 Worktree：`new-api-development`；功能分支：`feature/client-access-codex-quota`；当前基线提交 `193294c62`，源码仍有未提交改动，镜像标签因此带 `dirty`，不能视为可复现的正式候选。
+- 开发镜像：`new-api:dev-20260925-01-g193294c62-dirty`，ID `sha256:dadc0cfe06819035052b14aed1ffdc4bee1e29898b3012ba0412af1daaa2d078`。先前临时标签与单独 Web builder 镜像已删除；该开发镜像暂留作本阶段后续回归，不能部署生产。
+- 功能范围：独立的 `client_access_credentials`/`client_access_grants` 两表、Root 管理 API 和页面、客户端独立凭据/Scope 鉴权、裁剪的 Codex 额度接口、Redis 限流与缓存、共享 OAuth 刷新协调。不改官方 Token/Channel 表结构。
+- Go 相关六包测试通过；前端新增交互测试 2 项通过；Dockerfile 的 Bun Web 构建与完整应用镜像构建通过。宿主机 TypeScript 全量检查因既有 pnpm 依赖树中 React 类型冲突未通过；容器内全量类型检查因 Docker 上下文不包含 `pkg/billingexpr/testdata` 的既有测试夹具未通过，不能声称全量类型检查通过。
+- PostgreSQL 15、MySQL 8 隔离迁移演练通过：先写入旧 Channel/Token 行，再两次执行私有迁移，两张新表及索引存在，旧行内容不变。新镜像在隔离 PostgreSQL/Redis 上启动，`/api/status` 为 200，新接口无凭据为 401。旧版 `rc.40` 镜像在已迁移隔离库上回退启动，`/api/status` 为 200，两张私有表仍存在。
+- 本轮 5 个临时测试容器、专用网络和本轮产生的 3 个匿名数据卷已删除；删除的仅为合成测试数据，不能恢复。生产 `new-api`、Redis、PostgreSQL、Compose、`.volumes/new-api/` 均未触碰。Go 测试缓存卷暂留至本功能开发结束后清理。
+- API 文档：`docs/development/client-access-credentials-api.md`；Postman：`postman/New-API-Custom-APIs.postman_collection.json` 的新增分组；设计与计划在 `docs/superpowers/`。
+- 尚未完成：真实 Root 登录到页面后的端到端创建/轮换/撤销、真实上游额度、全量回归、生产数据备份/迁移演练、用户验收和生产交接包。不得仅凭本节把功能提升至生产。
+
+## 2026-09-26：客户端访问错误边界、审计与跨数据库 CAS 复核（开发中，未发布）
+
+- 分支仍为 `feature/client-access-codex-quota`，基线 `193294c62`；工作区保持未提交状态。本轮没有构建新镜像、提交、推送或部署；生产 Compose、生产容器、生产数据库/Redis 和永久测试环境均未修改。
+- 将客户端额度解析、Redis 缓存和结构化审计中的 JSON 编解码收敛到 `common.Unmarshal` / `common.Marshal`，遵守仓库统一 JSON 封装约定。
+- 客户端访问审计现在覆盖 handler panic：只记录固定 `error_type=PANIC`，返回通用 HTTP 500 `CLIENT_ACCESS_INTERNAL_ERROR`，不把 panic 原文写入该请求审计或客户端响应；其他路由的全局恢复行为未改。
+- 跨库回归在真实 MySQL 8.0.46 上复现 OAuth Key CAS 条件更新的 SQL 错误：未引用的 `key` 列生成 `... AND key = ...`。改为 GORM `clause.Eq` 按方言引用标识符后，PostgreSQL 15.19 与 MySQL 8.0.46 的隔离测试均通过；SQLite 单测也覆盖更新成功及旧 Key 不得覆盖新值。新增的跨库测试必须显式设置 `CLIENT_ACCESS_ISOLATED_TEST_DB=1` 并提供专用测试 DSN。
+- 验证：一次性 `golang:1.26.1-alpine` 工具容器运行 `go test -count=1 ./service/clientaccess ./service ./middleware ./controller ./router ./model`，六个包全部通过；单独的 PostgreSQL/MySQL CAS 方言回归通过；修改的 Go 文件 `gofmt` 检查与 `git diff --check` 通过。SQLite 驱动为 `github.com/glebarez/sqlite v1.11.0` / `modernc.org/sqlite v1.40.1`。
+- 本轮仅启动两个使用临时文件系统的数据库容器和一个专用 Docker 网络用于方言测试；两个容器已移除，专用网络已删除，未创建持久测试数据卷。
+- 尚未完成：真实 Root 登录后的管理页创建/轮换/撤销、真实 Codex 上游额度读取、完整隔离运行回归及用户验收。此前的 `2026-09-25` 开发镜像不包含本轮源码修改，不得用于本轮功能验收；进入测试环境前需重新构建候选镜像并按独立数据边界验证。
+
+## 2026-09-26：客户端访问凭据候选部署到永久隔离测试栈（未发布）
+
+### 源码与镜像
+
+- 开发 Worktree：`new-api-development`；分支：`feature/client-access-codex-quota`；基线提交：`193294c62e449351d059c5d16981786336b36c89`。工作区仍有本功能未提交改动，候选标签保留 `dirty`，不能作为可复现正式候选。
+- 开发镜像：`new-api:dev-20260926-01-g193294c62-dirty`；镜像 ID：`sha256:8679c44d7a29807519df10e621669b3dff051a118dabbee0986007143eab16f9`；架构：`linux/arm64`；构建时间约 `2026-09-26 13:25:47`（Asia/Shanghai）。使用仓库完整 `Dockerfile` 构建，前端 Rsbuild 与 Go 编译均通过。
+- 本轮源码回归：六个 Go 包 `service/clientaccess`、`service`、`middleware`、`controller`、`router`、`model` 全部通过；客户端访问页面和系统设置入口相关前端测试 2 个文件、4 个用例通过；修改的 Go 文件 `gofmt` 检查、`git diff --check` 通过。
+
+### 永久测试栈与迁移前备份
+
+- 使用 `new-api-upgrade-verify-20260911` 永久测试栈，地址仅监听 `127.0.0.1:3317`；PostgreSQL、Redis、应用 `/data` 使用独立测试卷，与生产完全分离。
+- 迁移前证据目录：`../.backups/new-api/upgrade-verify-20260911/pre-client-access-20260926/`。PostgreSQL 自定义格式 dump：`postgres-before.dump`，SHA-256：`bb52e800150f6ec91203f1e1d66de9ae4ee0cf34a20d9607550cea77767542e2`；应用 `/data` 归档 SHA-256：`a8f914a03d829b0dd3b9ba152e30032e70e7990ab543818e3320b670f713a2bf`；切换前 Compose 快照 SHA-256：`28cce5d68d67aef6612b22fb6d36c0ad7eb780eb2d4f8fd73c24dc7dbbd2c5f1`。
+- 测试 Compose 相对快照仅把应用镜像从 `rc.36` 改为本候选标签；只强制重建测试应用容器，使用 `--no-deps`，没有重建测试 PostgreSQL/Redis。测试 PostgreSQL/Redis、测试 `/data` 和网络均保留。
+- 测试数据库从 `rc.36` 升级到候选镜像后，旧表行数保持：users=1、tokens=2、channels=4、logs=20；新增 `client_access_credentials` 与 `client_access_grants` 两张表。数据库版本 PostgreSQL 15.19。原 `rc.36` 镜像仍保留作测试回滚标签；本轮未执行回滚。
+
+### 隔离回归结果与剩余限制
+
+- 候选容器运行，`/api/status` 返回 `success=true`、`setup=true`、`password_login_encryption_enabled=true`；`/`、`/login`、`/system-settings/client-access` 返回 HTTP 200。
+- 未认证访问 `/api/client-access/scopes`、`/api/client-access/credentials`、`/api/client-access/v1/codex/usage`、既有用量聚合接口、`/v1/models` 与 `/v1/responses` 均按预期返回 HTTP 401；启动日志未检出 panic、fatal 或迁移错误。
+- 测试数据库当前没有启用的官方 Codex 渠道（`type=57` 数量为 0），因此尚不能完成 Root 登录后的有效渠道绑定、凭据创建/轮换/撤销流程，也不能完成真实上游额度成功响应。不得复制生产 OAuth 凭据；需由用户在测试环境配置独立测试渠道后再继续。
+- 生产 `new-api` 仍为 `new-api:v1.0.0-rc.40-20260922-01-g996adffe` 且 healthy；生产 PostgreSQL、Redis、Compose 和数据卷均未触碰。本功能未提交、未推送、未合并到 `personal/main`、未构建正式候选，也未进行生产发布。
+- 测试栈当前保留运行供用户验收；测试账号凭据仍只在本机隔离测试目录 README 中，不写入 Git 或知识库。此记录不构成生产发布授权。
+
+## 2026-09-26：真实额度接口验证与 Docker OOM 事故（未发布）
+
+- 用户在永久隔离测试栈配置独立 ChatGPT Plus 渠道、创建并轮换客户端访问凭据。轮换后的凭据调用 `GET /api/client-access/v1/codex/usage` 返回 HTTP 200、`success=true`、`status=fresh`，5 小时与 7 天窗口均返回数据。凭据明文、上游 OAuth 信息和实际额度数值均未记入本日志。
+- 随后我使用一次性 Go 工具容器下载依赖并编译测试。Docker 虚拟机可用内存约 985 MiB；虚拟机内核日志显示 22:29:41 OOM 杀死 Go `compile`，22:30:24 OOM 杀死 `dockerd`，22:30:35 多个容器被停止。生产服务因 `restart=always` 从约 22:30:46 起自动恢复。这次生产短暂中断由我的测试方式引起，并非手动执行 `docker restart`；不能描述为“生产未受影响”。再次降低并行度的 Go 测试也发生 OOM，且临时目录有执行权限错误；这两次均不是有效的 Go 测试结果。
+- 事故后只启动原有、设置为 `restart=no` 的永久测试栈容器，未重建测试镜像或数据容器。复核时生产 `new-api` 为 `running + healthy`，生产 Redis、PostgreSQL、Nginx 均运行；永久测试应用与 PostgreSQL/Redis 运行，测试 `/api/status` 返回 `success=true`。没有修改生产 Compose、镜像或数据。
+- 本轮轻量检查：两个定向前端 Vitest 文件共 4 个用例通过，`git diff --check` 通过。误扩展为全量的 Vitest 命令出现既有 React hook 错误后已停止，不宣称全量测试通过；本轮 Go 测试也未成功复验。当前 Docker 内存配额下禁止再进行 Go 编译，重跑需先提高 Docker 内存配额或改用独立构建环境。
+- 功能分支仍有未提交改动，测试镜像带 `dirty`；未合并、推送或切换生产。后续仍需管理端创建/轮换/撤销完整回归、缓存/限流与撤销即时失效验证、生产数据副本升级及回滚演练，并单独审核发布方案。
+
+### Docker 内存上限调整后的安全复验
+
+- 用户将 Docker 虚拟机内存上限调为约 2 GiB；`docker info` 实测 `2085511168` 字节。该值是上限而非持续占用量。调整后生产四个常驻容器的实测内存合计约 112 MiB。
+- 本轮 Go 工具容器单独限制为 1200 MiB、1 CPU、单线程与单包编译，复用已有依赖/构建缓存；`go test -count=1 ./service/clientaccess ./service ./middleware ./controller ./router ./model` 六包全部退出码 0。观察到测试容器内存约 440–500 MiB，未再出现 Docker 守护进程 OOM。此结果只证明本轮定向测试，不代表全量回归。
+- 原永久测试栈三个容器在 Docker 设置调整后为停止状态；只对原容器执行 `docker start`，未重建镜像或数据卷。随后测试 `/api/status` 返回 `success=true`、`setup=true`、`password_login_encryption_enabled=true`。生产应用复核为 `running + healthy`。
+- 前端精确运行两个相关 Vitest 文件，2/2 文件、4/4 用例通过；`git diff --check` 通过。开发工作区仍有本功能未提交源码，未做生产发布。
+
+## 2026-09-26：客户端访问凭据浏览器端到端验收（隔离测试）
+
+- 仅操作 `127.0.0.1:3317` 永久测试栈。使用测试 Root 账号在 Web「系统设置 → 客户端访问凭据」中新建 `自动验收-20260926` 专用凭据，绑定测试环境已存在的 Codex 类型渠道；未修改用户已有的 `测试Codex` 凭据或生产渠道。
+- 新凭据的额度接口先返回 HTTP 200 `fresh`，紧接着返回 HTTP 200 `cached`；响应包含 5 小时与 7 天窗口。把 Grant 清空后，即使已有缓存，接口立即返回 403；在页面恢复原授权后重新返回 200。
+- 页面禁用后接口立即 401，重新启用后 200。限流短测在前序请求已占用部分额度的同一分钟内，连续 35 次请求得到 29 次 200、6 次 429；只调用本测试凭据，不把此计数误写成全新窗口的精确第 31 次边界。
+- 页面轮换后，旧凭据立即 401，新凭据 200；随后撤销这条专用测试凭据，新凭据立即 401。撤销是测试数据的预期最终状态，用户已有凭据仍显示启用。新凭据访问旧后台 Token/Channel API 或 `/v1/models` 均为 401，未跨鉴权边界。
+- 浏览器重新登录后，既有 `/usage-summary` 页面可读取本月合成日志：18 请求、60,400 总 Token；API 令牌 → 渠道 → 模型三级选择正常，切换到演示令牌的 Gemini 渠道后显示两个 Gemini 模型。登录前控制台唯一 401 为预期的会话刷新未认证响应。
+- 自动化生成的两份含完整临时凭据的浏览器快照已定点删除，剪贴板已清空；此日志、截图和知识库均不保存明文。测试环境三个容器与生产应用复核仍运行，生产应用 healthy。尚未执行生产数据副本升级、真实生产请求回归或生产发布；本轮浏览器验收不能替代这些门槛。
+
+## 2026-09-27：客户端访问功能隔离工具链复验（未发布）
+
+- 用户把 Docker 虚拟机内存上限调到约 4 GiB 后，一次性 Bun 1.4.0 容器使用仓库 `web/bun.lock` 安装依赖并完成正式前端构建；独立 3 GiB 容器完成前端类型检查。宿主机既有 `node_modules` 与未跟踪的 `pnpm-lock.yaml` 未参与构建。
+- 新增页面原先从布局总入口导入，单文件 Vitest 连带初始化无关系统设置模块而报 `z.object` 未定义；改为直接导入布局组件后，新增页面定向 2/2 用例通过。前端全量 Vitest 仍非全绿：从未修改的 HEAD 导出源码作基线，同一 Bun/锁文件环境下原有渠道测试也在 `z.object` 处以 0 tests 失败。不能把全量测试称为通过，也不能把全部失败归咎于本功能。
+- 采用真实 Bun 构建产物提供 `web/dist/index.html`，只读挂载开发源码并对 Go 容器设 1.4 GiB/1 CPU 硬限额；根模块 `go test -count=1 ./...` 退出码 0，独立 `relaykit` 模块 `go test -count=1 ./...` 退出码 0。临时前端产物卷已删除。`gofmt -l` 与 `git diff --check` 无输出。
+- 以上验证对应尚未提交的功能源码；生产 `new-api` 保持 healthy，生产 Compose、数据库和数据卷未修改。尚未建立正式候选、同镜像测试回归、生产备份或发布交接包。
+
+## 2026-09-27：客户端访问正式候选、隔离回归与生产备份（待切换）
+
+- 功能提交：`8efa34f2639c35d191d1a425f984eabc9dfa9d4c`，分支 `feature/client-access-codex-quota`；仅提交本功能 47 个源码/测试/文档文件，未暂存私人 Compose、依赖目录或无关计划。
+- 当日正式候选序号 `01` 的官方 Dockerfile 构建停在 `go mod download`，人工取消，未生成镜像且序号不复用。序号 `02` 以相同提交的 `git archive` 为精确上下文、官方 Dockerfile 和 host 网络构建成功：`new-api:v1.0.0-rc.40-20260927-02-g8efa34f2`，ID `sha256:52e447b04dfad961b3b01993ac5ce7e640e303c236a0d331071d3e18029190a3`，`linux/arm64`。
+- 永久隔离测试栈切换前保存独立 Compose 与 PostgreSQL dump，后者 SHA-256 `3fef95f01388502e9aee7fa5b6fdab0f2d84c22fc0fa940101f404a7a5aa6cd1`，`pg_restore --list` 可读。测试 Compose 相对快照仅应用镜像一行改变；只重建测试应用，测试 PostgreSQL/Redis 沿用原容器与卷。测试应用实际镜像 ID 与正式候选一致。
+- 测试 `/api/status` 返回 `success=true`、`setup=true`、`password_login_encryption_enabled=true`；`/`、`/login`、新管理页 HTTP 200；未认证的新管理接口、额度接口、旧模型接口均为预期 401。测试库当前 users/tokens/channels/私有凭据/Grant 行数为 `1/2/5/2/2`。该正式候选尚未重新执行带凭据的完整浏览器回归；此前真实管理与上游额度端到端验收是在同功能的 dirty 开发镜像上完成，不能冒充本次正式候选的认证态验收。
+- 生产切换前备份位于 Git 外 `.backups/new-api/pre-switch-client-access-20260927-96uoj5/`：PostgreSQL 自定义格式 dump SHA-256 `18a66242d9cca724dd003dab04ce8f0ab8cd04cee7a541c18a3748dfc016651e`，`data/logs` 归档 SHA-256 `01da3ade6f68d0721f8a996fda8a8edef3cbda90f9e34c78ad6f`，生产 Compose 快照 SHA-256 `e1f58ab36d31b989f1f588ba06ca2b1f8d08d042b25dfe9dace64b3d1b93e7aa`；dump 与归档均经可读性检查。旧生产镜像仍在，生产应用继续运行旧镜像且 healthy；生产 PostgreSQL、Redis、Nginx 与 Compose 未变更。
+- 待执行交接包：`.backups/new-api/handoffs/new-api-client-access-prod-20260927-01/HANDOFF.md`，状态 `pending`。包只授权独立 Agent 在再次核对后切换应用镜像及必要回滚，不授权 Git 合并/推送或数据库恢复。`personal/main` 与功能分支的模拟合并在发布日志发生冲突，且生产源码工作区已有未提交日志；源码合并另行受控处理，不在本包内。
+
+## 2026-10-03：同步官方 rc.41（开发分支本地合并，未发布）
+
+- 仅在 `new-api-development` 的 `upgrade/upstream-main-20261003` 操作；从私有功能基线 `505bfa3d4008faae89ab5781d41e0b665b8a2e88` 合并官方 `v1.0.0-rc.41`（`2035a82aeb5414253a728bd937d4b8f97aa99b9b`），不包含标签后的提交。回退分支 `backup/pre-sync-20261003-feature` 指向原基线；本地合并不等于合入 `personal/main` 或推送。
+- 唯一显式冲突是官方删除的旧后台令牌卡片测试；旧组件也已删除，因此按官方新测试结构移除旧测试。新增独立私有 PAT 路由声明：用量汇总分别要求 `log:read` / `usage:read`，私有凭据管理仅限后台会话；独立客户端额度接口不经过官方 PAT，加入覆盖测试的豁免清单。
+- 合并前的部分 Go 测试通过；合并后的首轮测试中 `controller`、`middleware`、`model`、`service/clientaccess`、`service/authz` 和 relay 相关包通过，`router` 仅因私有路由未声明而失败，已做针对性修复但**尚未复测**。独立 `relaykit` 被误写入主模块命令，命令本身报模块范围错误，不视为代码失败。
+- 前端既有 `web/node_modules` 混有两份 React 解析路径。定向 Vitest 为 20 通过、2 个 `Invalid hook call` 失败；`pnpm exec tsgo -b` 在未改的 `calendar.tsx` 因两份 React 类型冲突失败。这些结果不构成干净依赖环境下的前端回归结论，未覆盖或删除宿主机依赖。
+- 当前沙箱无法连接 Docker；申请运行限额 1.5 GiB 的临时测试容器时，自动审批服务返回 503，命令未执行。不得绕过审批。完整 Go/relaykit 复测、Bun 前端构建、独立测试数据库迁移与运行回归均待补，未构建镜像或切换任何容器。
+- 数据库静态检查：官方新增 `user_access_tokens` 表及 `options.LegacyAccessTokenRetireAt`（首次升级后 30 天），暂未删除旧 `users.access_token` 列；私有两张 `client_access_` 表仍独立。旧后台令牌退役与私有接口权限需要在隔离测试和正式发布前继续验证。生产 Compose、数据库/Redis、容器及 `personal/main` 均未触碰，未跟踪文件原样保留。
+
+### 权限恢复后的开发与隔离回归
+
+- Go 根模块 `go test -p 2 ./...`、独立 `relaykit` 的 `go test -p 2 ./...` 均退出码 0；私有路由权限覆盖测试通过。完整 Dockerfile 的前端 Rsbuild 与 Go 编译均通过。Bun 类型检查首次因只构建 `web` 阶段缺少仓库根目录测试 fixture 报错；把 `pkg` 只读挂载到正确位置后退出码 0。修改过的 Go 文件 `gofmt -l`、`git diff --cached --check` 无输出。
+- 使用暂存区导出的干净构建上下文，排除了未跟踪文件和宿主机混合 `node_modules`。开发镜像：`new-api:dev-v1.0.0-rc.41-20261003-01-g505bfa3d-dirty`，ID `sha256:de68ab60dc22240f980f1a490264d19fd76b00988cb5c1547eba370f914b25d1`，`linux/arm64`。标签带 `dirty`，不能作为可复现正式发布候选。
+- 前端定向 Vitest 在干净 Bun 依赖下、`TZ=Asia/Shanghai` 运行：6 个文件、27 个用例通过；另 3 个组件测试文件在加载阶段以 `z.object` / `z.string` 未定义失败，未执行用例。用官方 rc.41 原样源码复跑 2 个安全组件测试，得到相同 `z.string` 失败；用合并前私有 HEAD 复跑统计页测试，得到相同 `z.object` 失败，确认这 3 个失败在对应基线已存在。全量 lint 为 181 error、66 warning，官方 rc.41 原样源码计数完全相同。未把这些失败伪报为通过，也未顺手修改无关前端代码；宿主机先前重复 React 导致的结果不用于本次隔离验收。
+- 永久测试栈 `new-api-upgrade-verify-20260911` 原本停止；只启动原有测试 PostgreSQL/Redis，先备份测试 Compose、PostgreSQL dump 和应用 `/data`，再仅把测试应用镜像切到上述开发镜像。备份位于 Git 外 `.backups/new-api/rc41-test-pre-20261003-01/`，dump SHA-256 `f58b7be530cef69abbaa05251aaef121da264004a580aa102dec2a5749dd6ee0`，`pg_restore -l` 可读；切换前后 Compose 仅镜像一行不同。测试数据库与生产完全分离，没有执行 `down -v`。
+- 测试旧数据升级前后 `users/tokens/channels/client_access_credentials/client_access_grants=1/2/5/2/2` 不变；新建 `user_access_tokens` 表及 4 个索引和一条 `LegacyAccessTokenRetireAt` 选项，旧 `users.access_token` 列仍在，私有两表仍在。测试应用单独重启后，行数与退役时间戳 `1793633498` 保持不变，未见迁移错误。测试 Compose 无 healthcheck，只确认进程 running、`/api/status.success=true`、加密登录开关为 true。
+- 测试环境的 `/`、`/login`、`/usage-summary`、`/system-settings/client-access` 均 HTTP 200；未认证的聚合、私有凭据、模型和 Responses 接口均 401。使用测试账号完成一次 RSA 加密登录，登录后的 `/api/user/self`、`/api/user/access_tokens`、管理员/个人聚合、私有凭据列表均 HTTP 200 且 `success=true`；凭据、会话 Token 和响应数据未输出或写入文档。尚未以已有私有客户端凭据验证真实 Codex 上游额度，也未对新 PAT 的每种 scope 做端到端授权矩阵测试。
+- 最终复核生产 `new-api` 仍为原 `rc.40` 镜像且 running + healthy，生产 PostgreSQL/Redis 容器 ID 未变化。当前只完成开发分支本地合并与测试栈回归；未合入 `personal/main`、未推送 Fork、未制作正式候选或发布生产。
+
+## 2026-10-04：rc.41 合并提交的精确开发镜像与隔离测试切换
+
+- 源码为 `new-api-development` 的 `upgrade/upstream-main-20261003` 分支、merge commit `03966dabb72a88c3e4762016017f769286cdfb4d`；使用 `git archive HEAD` 作为 Docker 构建上下文，不包含工作区未跟踪文件。完整仓库 Dockerfile 构建退出码 0。
+- 当日开发镜像序号 `01`：`new-api:dev-20261004-01-g03966dabb`，ID `sha256:53d1c811c39de155d81dce5e5e49b8fc95161248a60a5e01bb7540101ba8aa70`，`linux/arm64`，创建时间 2026-10-04 00:08:39（Asia/Shanghai）；镜像 revision 标签与提交全 SHA 一致。该 tag 是开发镜像，不是正式发布候选。
+- 构建前 Docker 虚拟机内存上限约 4 GB；构建完成后最初没有切换容器，旧测试应用仍使用 `sha256:de68ab60...` dirty 镜像。随后经用户确认，才进入下列测试切换步骤；构建阶段的旧容器响应不计入新镜像运行回归。
+- 切换前备份位于 Git 外 `.backups/new-api/rc41-commit-test-pre-20261004-01/`：测试 Compose 快照 SHA-256 `0f2a6245aaa909cc6d05cdf407e5e3cc61cbef560ebc44500450a8cf73591e6e`；PostgreSQL 自定义格式 dump SHA-256 `701f81c4aeda8c2ce709fb11e84ac5ed820f87a0e345db94298f82d53d9f86dd`，`pg_restore --list` 可读；应用 `/data` 归档 SHA-256 `cd0521587b0350c6dbea854b56ba516c84bfdfd96b2e490d6e58c31f4d07512d`，`tar -tzf` 可读。备份目录权限为仅当前用户可进入，未备份或触碰生产数据。
+- 测试 Compose 相对快照只修改第 6 行应用镜像 tag；`docker compose config --quiet` 通过。使用 `up -d --no-build --pull never --no-deps --force-recreate new-api` 仅重建测试应用，未重建测试 PostgreSQL/Redis。新应用容器实际镜像 ID 与上述精确开发镜像相同，状态 running、重启次数 0；测试 PostgreSQL 与 Redis 容器 ID 保持为 `b1a866ac...` / `6db995c4...`。
+- 新镜像下 `127.0.0.1:3317/api/status` 返回 `success=true`、`setup=true`、`password_login_encryption_enabled=true`；`/`、`/login`、`/usage-summary`、`/system-settings/client-access` 均 HTTP 200；未认证的用量汇总、私有凭据、官方 PAT、客户端额度、模型与 Responses 接口均按预期返回 401。测试库 `users/tokens/channels/client_access_credentials/client_access_grants/user_access_tokens` 行数为 `1/2/5/2/2/0`；启动后日志未检出 panic、fatal、迁移失败或数据库错误。本轮尚未重新执行登录态接口、真实 Codex 上游额度或 PAT scope 矩阵，不能宣称完整业务验收。
+- 旧测试镜像 `sha256:de68ab60dc22240f980f1a490264d19fd76b00988cb5c1547eba370f914b25d1` 和 Compose 快照均保留，可将测试镜像行恢复后只重建测试应用；未发生回滚。生产维持 rc.40，本次未修改生产 Compose、容器或数据，也未合入 `personal/main`、推送 Fork 或制作正式候选。
+
+## 2026-10-04：rc.41 精确开发镜像认证态业务回归
+
+- 目标仅为 `127.0.0.1:3317` 永久隔离测试栈，镜像仍为 `new-api:dev-20261004-01-g03966dabb` / `sha256:53d1c811c39de155d81dce5e5e49b8fc95161248a60a5e01bb7540101ba8aa70`。测试账户凭据仅内存使用，脚本位于 Git 外备份目录，未输出 Token、Cookie、密码或额度正文。
+- 实际接口通过：明文密码拒绝、RSA-OAEP 加密登录、会话 JWT、Cookie 刷新并保持 SID；管理员/个人有界时间用量汇总及趋势、至少两个 API 令牌的数据层级与汇总一致性、个人接口忽略伪造用户名、非法时间参数拒绝。
+- 私有客户端接口通过：Scope/资源/列表排除上游秘密；临时凭据创建、去除/恢复授权、禁用/启用、轮换、旧 Token 失效、撤销后失效。真实 Codex 上游额度返回 HTTP 200，再次查询命中缓存；即使有缓存，去除授权仍立即返回 403。客户端凭据不能调用后台管理或模型接口。临时客户端凭据均已通过正常 API 撤销。
+- 官方 PAT 接口已通过：目录与列表、创建要求安全证明、加密密码 step-up、安全证明不可重放；`log:read` 可访问私有管理员聚合而不能访问个人聚合；后台 PAT 不能管理私有客户端凭据（`AUTH_SESSION_REQUIRED`）、不能调用客户端额度或模型接口。
+- 首轮脚本误把 OpenAI 风格 401 要求为 `success:false`，导致断言失败；修正测试断言后该检查通过，没有修改服务来适配测试。
+- 第二轮剩余 PAT scope 修改及清理遭遇 HTTP 429。已核对官方关键接口共享 IP 固定窗口 `20 次 / 1200 秒`（登录、刷新、verify、PAT 写操作、退出与日志接口），不是服务崩溃。按隔离 Redis 的窗口自然过期补跑剩余用例，未删除计数、关闭限流或重启容器；最终结果另行追加，当前不把尚未执行的检查算通过。
+- 浏览器首页与登录页实际渲染正常；登录后的统计层级、趋势及官方新 PAT 权限编辑的视觉/交互效果仍需浏览器人工复核，HTTP 200 不替代 UI 验收。
+- `personal/main` 集成预检仅发现发布日志冲突；生产源码 worktree 的发布日志还有既有未提交追加记录。后续合并必须保存两边记录，不覆盖或暂存私人生产 Compose。本轮未合入个人稳定分支、提交/推送新文档、构建正式候选或切换生产。
+
+### 限流窗口后的补测与清理
+
+- 隔离测试关键接口窗口自然过期后，运行 Git 外 `verify-authenticated.mjs --remaining`，退出码 0，29 条检查全部 PASS；本次补测不再访问 Codex 上游，前一轮真实额度 200 与缓存验证结果保留。
+- 加密登录、step-up 创建/修改/撤销 PAT 均通过。将同一个 PAT 从 `log:read` 改为 `usage:read` 后，管理员聚合立即为 403 `ACCESS_TOKEN_SCOPE_DENIED`，个人聚合为 200；撤销后立即为 401 `AUTH_UNAUTHORIZED`。
+- 前一轮因 429 遗留的临时 PAT 通过正常 API 撤销，精确匹配本轮自动化的旧会话也已撤销；新补测 PAT 已撤销，最终 PAT 列表无 `rc41-auto-` 临时记录。当前补测会话退出成功，旧会话 JWT 再调用为 401 `AUTH_SESSION_REVOKED`。用户原有凭据、浏览器会话和更早会话未撤销。
+- 本轮核心 API 业务回归完成，未发现本次同步引入的接口回归；后台页面视觉/交互、付费模型真实生成请求并未在本轮执行，不把它们标为通过。前端已有导入/lint 技术债仍按此前记录保留，不声称全量前端测试全绿。
+- 后续按独立授权处理：保存生产源码目录既有日志、合并开发分支、构建正式候选、将同一候选放测试环境复验、生产备份与切换交接；当前生产仍为 rc.40。
+
+## 2026-10-04：rc.41 合入个人稳定源码分支（生产未切换）
+
+- 用户允许继续发布准备；先将生产源码 worktree 既有的 rc.40 验收日志保存到 Git 外交接证据目录，再单独提交为 `95344a6e2`，没有覆盖原记录。代码回退分支 `backup/pre-release-20261004-rc41` 保留合入前 HEAD `4267c68d6`。
+- 开发分支认证态回归及接口文档收尾提交 `a0441d1a4`。使用普通 merge 合入共享 `personal/main`，不 rebase、不改写历史、不推送。唯一冲突为发布日志追加记录，保留两边内容及个人主线此前校正的推送结论。
+- 合并暂存区除发布日志外与已验证开发分支完全一致，没有新增业务源码修改。生产控制目录、私人 Compose、生产容器和数据仍未修改；下一步仅从生产源码 worktree 构建正式候选并放入独立测试栈复验。

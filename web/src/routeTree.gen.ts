@@ -61,6 +61,7 @@ import { Route as AuthenticatedSystemSettingsAuthIndexRouteImport } from './rout
 import { Route as AuthenticatedSystemSettingsAuthSectionRouteImport } from './routes/_authenticated/system-settings/auth/$section'
 import { Route as AuthenticatedSystemSettingsBillingIndexRouteImport } from './routes/_authenticated/system-settings/billing/index'
 import { Route as AuthenticatedSystemSettingsBillingSectionRouteImport } from './routes/_authenticated/system-settings/billing/$section'
+import { Route as AuthenticatedSystemSettingsClientAccessIndexRouteImport } from './routes/_authenticated/system-settings/client-access/index'
 import { Route as AuthenticatedSystemSettingsContentIndexRouteImport } from './routes/_authenticated/system-settings/content/index'
 import { Route as AuthenticatedSystemSettingsContentSectionRouteImport } from './routes/_authenticated/system-settings/content/$section'
 import { Route as AuthenticatedSystemSettingsModelsIndexRouteImport } from './routes/_authenticated/system-settings/models/index'
@@ -356,6 +357,12 @@ const AuthenticatedSystemSettingsBillingSectionRoute =
     path: '/billing/$section',
     getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
   } as any)
+const AuthenticatedSystemSettingsClientAccessIndexRoute =
+  AuthenticatedSystemSettingsClientAccessIndexRouteImport.update({
+    id: '/client-access/',
+    path: '/client-access/',
+    getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
+  } as any)
 const AuthenticatedSystemSettingsContentIndexRoute =
   AuthenticatedSystemSettingsContentIndexRouteImport.update({
     id: '/content/',
@@ -486,6 +493,7 @@ export interface FileRoutesByFullPath {
   '/system-settings/site/$section': typeof AuthenticatedSystemSettingsSiteSectionRoute
   '/system-settings/auth/': typeof AuthenticatedSystemSettingsAuthIndexRoute
   '/system-settings/billing/': typeof AuthenticatedSystemSettingsBillingIndexRoute
+  '/system-settings/client-access/': typeof AuthenticatedSystemSettingsClientAccessIndexRoute
   '/system-settings/content/': typeof AuthenticatedSystemSettingsContentIndexRoute
   '/system-settings/models/': typeof AuthenticatedSystemSettingsModelsIndexRoute
   '/system-settings/operations/': typeof AuthenticatedSystemSettingsOperationsIndexRoute
@@ -549,6 +557,7 @@ export interface FileRoutesByTo {
   '/system-settings/site/$section': typeof AuthenticatedSystemSettingsSiteSectionRoute
   '/system-settings/auth': typeof AuthenticatedSystemSettingsAuthIndexRoute
   '/system-settings/billing': typeof AuthenticatedSystemSettingsBillingIndexRoute
+  '/system-settings/client-access': typeof AuthenticatedSystemSettingsClientAccessIndexRoute
   '/system-settings/content': typeof AuthenticatedSystemSettingsContentIndexRoute
   '/system-settings/models': typeof AuthenticatedSystemSettingsModelsIndexRoute
   '/system-settings/operations': typeof AuthenticatedSystemSettingsOperationsIndexRoute
@@ -616,6 +625,7 @@ export interface FileRoutesById {
   '/_authenticated/system-settings/site/$section': typeof AuthenticatedSystemSettingsSiteSectionRoute
   '/_authenticated/system-settings/auth/': typeof AuthenticatedSystemSettingsAuthIndexRoute
   '/_authenticated/system-settings/billing/': typeof AuthenticatedSystemSettingsBillingIndexRoute
+  '/_authenticated/system-settings/client-access/': typeof AuthenticatedSystemSettingsClientAccessIndexRoute
   '/_authenticated/system-settings/content/': typeof AuthenticatedSystemSettingsContentIndexRoute
   '/_authenticated/system-settings/models/': typeof AuthenticatedSystemSettingsModelsIndexRoute
   '/_authenticated/system-settings/operations/': typeof AuthenticatedSystemSettingsOperationsIndexRoute
@@ -682,6 +692,7 @@ export interface FileRouteTypes {
     | '/system-settings/site/$section'
     | '/system-settings/auth/'
     | '/system-settings/billing/'
+    | '/system-settings/client-access/'
     | '/system-settings/content/'
     | '/system-settings/models/'
     | '/system-settings/operations/'
@@ -745,6 +756,7 @@ export interface FileRouteTypes {
     | '/system-settings/site/$section'
     | '/system-settings/auth'
     | '/system-settings/billing'
+    | '/system-settings/client-access'
     | '/system-settings/content'
     | '/system-settings/models'
     | '/system-settings/operations'
@@ -811,6 +823,7 @@ export interface FileRouteTypes {
     | '/_authenticated/system-settings/site/$section'
     | '/_authenticated/system-settings/auth/'
     | '/_authenticated/system-settings/billing/'
+    | '/_authenticated/system-settings/client-access/'
     | '/_authenticated/system-settings/content/'
     | '/_authenticated/system-settings/models/'
     | '/_authenticated/system-settings/operations/'
@@ -1204,6 +1217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSystemSettingsBillingSectionRouteImport
       parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
     }
+    '/_authenticated/system-settings/client-access/': {
+      id: '/_authenticated/system-settings/client-access/'
+      path: '/client-access'
+      fullPath: '/system-settings/client-access/'
+      preLoaderRoute: typeof AuthenticatedSystemSettingsClientAccessIndexRouteImport
+      parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
+    }
     '/_authenticated/system-settings/content/': {
       id: '/_authenticated/system-settings/content/'
       path: '/content'
@@ -1329,6 +1349,7 @@ interface AuthenticatedSystemSettingsRouteRouteChildren {
   AuthenticatedSystemSettingsSiteSectionRoute: typeof AuthenticatedSystemSettingsSiteSectionRoute
   AuthenticatedSystemSettingsAuthIndexRoute: typeof AuthenticatedSystemSettingsAuthIndexRoute
   AuthenticatedSystemSettingsBillingIndexRoute: typeof AuthenticatedSystemSettingsBillingIndexRoute
+  AuthenticatedSystemSettingsClientAccessIndexRoute: typeof AuthenticatedSystemSettingsClientAccessIndexRoute
   AuthenticatedSystemSettingsContentIndexRoute: typeof AuthenticatedSystemSettingsContentIndexRoute
   AuthenticatedSystemSettingsModelsIndexRoute: typeof AuthenticatedSystemSettingsModelsIndexRoute
   AuthenticatedSystemSettingsOperationsIndexRoute: typeof AuthenticatedSystemSettingsOperationsIndexRoute
@@ -1361,6 +1382,8 @@ const AuthenticatedSystemSettingsRouteRouteChildren: AuthenticatedSystemSettings
       AuthenticatedSystemSettingsAuthIndexRoute,
     AuthenticatedSystemSettingsBillingIndexRoute:
       AuthenticatedSystemSettingsBillingIndexRoute,
+    AuthenticatedSystemSettingsClientAccessIndexRoute:
+      AuthenticatedSystemSettingsClientAccessIndexRoute,
     AuthenticatedSystemSettingsContentIndexRoute:
       AuthenticatedSystemSettingsContentIndexRoute,
     AuthenticatedSystemSettingsModelsIndexRoute:
