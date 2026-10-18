@@ -877,3 +877,15 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 生产仍运行 rc.40：`new-api:v1.0.0-rc.40-20260927-02-g8efa34f2` / `sha256:52e447b04dfad961b3b01993ac5ce7e640e303c236a0d331071d3e18029190a3`，running + healthy；容器 ID、启动时间、重启次数、数据库/Redis ID 及私人 Compose SHA 与准备前一致。未切换生产、未重启 Docker、未推送远端、未删除任何生产镜像或数据。已知 `VERSION` 为空仍保留，不能当作启动失败。
 - 生产交接包目录：`.backups/new-api/handoffs/new-api-pre-switch-20261004-rc41/`，三件套按 `handoff-management.md` 管理；初始状态 pending。执行 Agent 接管并获负责人停机窗口二次确认后，仅替换生产镜像行并用 `--no-build --pull never --no-deps` 重建应用；登录、统计、客户端额度、真实现有 Agent 流量和数据边界须在生产验收，不能用测试结果或 401 冒烟代替。旧后台 Token 在生产首次 rc.41 启动后进入 30 天退役期，截止值以生产实际配置为准；既有插件/客户端需要及时迁移 PAT，私有 `napi_client_` 不受该退役机制影响。
 - 集成提交的新鲜 Go 验证：从正式 Dockerfile 的 `builder2` 缓存阶段创建临时工具镜像，限定 `GOMAXPROCS=2`、`GOFLAGS=-p=2`。根模块 `go test -count=1 -timeout=12m ./...` 退出码 0；独立 `relaykit` 的 `go test -count=1 -timeout=5m ./...` 与 `go build ./...` 均退出码 0。首次 relaykit 检查在 `--network none` 下因独立模块依赖版本未缓存而失败（没有执行相关测试），只为工具容器开放正常包下载后重跑通过；原失败日志保留，不归因于业务错误。临时工具镜像/容器在验证后清理。前端此前 3 个导入失败与 181 error / 66 warning 的 lint 基线技术债仍保留，不声称前端全绿。
+
+## 2026-10-19：订阅额度账本开发镜像与固定测试部署
+
+- 用户确认 Standard、单 Agent、本地功能提交及固定测试备份/部署；未授权生产发布、稳定分支合并或远端推送。
+- 功能提交 `6e99fad563c67a3e8361208a7aa542accc5263b0`，分支 `feature/subscription-quota-ledger`；只提交本任务 44 文件，既有未跟踪文件保留。四张 `private_quota_` 表、Root 会话 API、独立 Web 页面与默认关闭采集器；不改官方业务表或 PAT Scope。
+- 从该提交 `git archive` 导出干净上下文，完整原生 Dockerfile、linux/arm64 构建成功。开发镜像 `new-api:dev-20261019-01-g6e99fad56`，ID `sha256:f4cabf731df7203c3e2e5782451c6363c6a275e9b6c89d8c4e78af2edfec49dd`；revision 标签匹配全 SHA。此镜像不是生产发布候选，生产候选仍须在生产源码 worktree 集成后构建。
+- 本轮新鲜验证：privatequota/clientaccess/model/controller/middleware/router 测试、service 的 Codex/Wham 定向测试及受影响包 go vet 均退出 0。前端 4 文件 7 用例、类型检查、14 文件局部 lint（0 错误/警告）、16 文件格式检查及生产构建通过。首次格式检查发现两份 locale 的新增词条缩进，已修复并复检；原失败日志保留。类型检查工具容器上限从 1200MiB 提高到 1800MiB，未变更 Docker 总内存或业务容器资源限制；未跑全库 lint 或 race。
+- 切换前备份位于 Git 外 `.backups/new-api/quota-ledger-test-20261019-01/`，权限受限；测试 PostgreSQL dump SHA-256 `1ff642c27cfa069852eeb9d34e476b53467fc23a09c62449f6aa0aea21bdfa1e`，`pg_restore --list` 可读；应用 data 归档与 Compose 快照有 SHA-256 清单，tar 可读。未备份或修改生产数据。
+- 仅将原固定测试 Compose 的应用镜像行切换为上述开发镜像，以 `up -d --no-build --pull never --no-deps` 重建测试 app；随后仅重启测试 app 一次检验持久化。固定入口 `http://127.0.0.1:3317/`，加密登录显式 true；测试 PostgreSQL/Redis 容器 ID 未变。
+- rc.41 原有测试数据库启动迁移后新增四张私有表；users/tokens/channels/client_access_credentials/client_access_grants 行数仍为 1/2/5/5/5。初始配置关闭、10 分钟、version=1；无历史快照。35 项认证态接口/安全/旧功能检查及二次启动后 28 项持久化回归全部通过；页面仅 HTTP 可达检查，不代替此次浏览器视觉验收。创建一条禁用的测试订阅供页面查看，设置调到 20 后恢复 10 分钟；采集全程关闭、未请求真实额度、未触发本模块 OAuth 刷新。
+- 未见启动 fatal/panic 或账本迁移/初始化/采集失败。生产应用仍为原 rc.41、running+healthy、RestartCount=0、StartedAt=2026-10-07T18:39:02.354401712Z；生产 Compose SHA、应用/PG/Redis ID 与备份前一致。未重启 Docker，未触碰 `.volumes`，未推送远端。
+- 本次临时工具容器与两张工具镜像已清理；可重建构建目录移入废纸篓（直接删除被安全限制阻止），证据日志已独立归档；既有镜像和全局构建缓存未清理。真实 OAuth 刷新/持续采集、自然重置、完整旧版三库升级回退及长期性能仍未验证，不把本轮通过称为生产已验收。
