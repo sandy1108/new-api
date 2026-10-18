@@ -25,7 +25,6 @@ import {
   Settings,
   Shield,
   ShieldAlert,
-  KeyRound,
   Wrench,
 } from 'lucide-react'
 
@@ -41,6 +40,7 @@ import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
 
 import type { NavGroup, SidebarView } from '../types'
+import { pongAPISettingsGroup } from './pong-api-settings.config'
 
 /**
  * Sidebar nav groups for the System Settings nested view.
@@ -67,12 +67,6 @@ function getSystemSettingsNavGroups(t: TFunction): NavGroup[] {
           title: t('Authentication'),
           icon: Shield,
           items: getAuthSectionNavItems(t),
-        },
-        {
-          title: '客户端访问凭据',
-          icon: KeyRound,
-          url: '/system-settings/client-access',
-          requiredRole: ROLE.SUPER_ADMIN,
         },
         {
           title: t('Billing & Payment'),
@@ -104,10 +98,9 @@ function getSystemSettingsNavGroups(t: TFunction): NavGroup[] {
           icon: Wrench,
           items: getOperationsSectionNavItems(t),
         },
-      ].filter(
-        (item) => item.requiredRole === undefined || role >= item.requiredRole
-      ),
+      ],
     },
+    ...pongAPISettingsGroup(t, role),
   ]
 }
 

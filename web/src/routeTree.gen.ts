@@ -74,6 +74,7 @@ import { Route as AuthenticatedSystemSettingsSecurityIndexRouteImport } from './
 import { Route as AuthenticatedSystemSettingsSecuritySectionRouteImport } from './routes/_authenticated/system-settings/security/$section'
 import { Route as AuthenticatedSystemSettingsSiteIndexRouteImport } from './routes/_authenticated/system-settings/site/index'
 import { Route as AuthenticatedSystemSettingsSiteSectionRouteImport } from './routes/_authenticated/system-settings/site/$section'
+import { Route as AuthenticatedSystemSettingsSubscriptionQuotaIndexRouteImport } from './routes/_authenticated/system-settings/subscription-quota/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -435,6 +436,12 @@ const AuthenticatedSystemSettingsSiteSectionRoute =
     path: '/site/$section',
     getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
   } as any)
+const AuthenticatedSystemSettingsSubscriptionQuotaIndexRoute =
+  AuthenticatedSystemSettingsSubscriptionQuotaIndexRouteImport.update({
+    id: '/subscription-quota/',
+    path: '/subscription-quota/',
+    getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -500,6 +507,7 @@ export interface FileRoutesByFullPath {
   '/system-settings/request-policies/': typeof AuthenticatedSystemSettingsRequestPoliciesIndexRoute
   '/system-settings/security/': typeof AuthenticatedSystemSettingsSecurityIndexRoute
   '/system-settings/site/': typeof AuthenticatedSystemSettingsSiteIndexRoute
+  '/system-settings/subscription-quota/': typeof AuthenticatedSystemSettingsSubscriptionQuotaIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -564,6 +572,7 @@ export interface FileRoutesByTo {
   '/system-settings/request-policies': typeof AuthenticatedSystemSettingsRequestPoliciesIndexRoute
   '/system-settings/security': typeof AuthenticatedSystemSettingsSecurityIndexRoute
   '/system-settings/site': typeof AuthenticatedSystemSettingsSiteIndexRoute
+  '/system-settings/subscription-quota': typeof AuthenticatedSystemSettingsSubscriptionQuotaIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -632,6 +641,7 @@ export interface FileRoutesById {
   '/_authenticated/system-settings/request-policies/': typeof AuthenticatedSystemSettingsRequestPoliciesIndexRoute
   '/_authenticated/system-settings/security/': typeof AuthenticatedSystemSettingsSecurityIndexRoute
   '/_authenticated/system-settings/site/': typeof AuthenticatedSystemSettingsSiteIndexRoute
+  '/_authenticated/system-settings/subscription-quota/': typeof AuthenticatedSystemSettingsSubscriptionQuotaIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -699,6 +709,7 @@ export interface FileRouteTypes {
     | '/system-settings/request-policies/'
     | '/system-settings/security/'
     | '/system-settings/site/'
+    | '/system-settings/subscription-quota/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -763,6 +774,7 @@ export interface FileRouteTypes {
     | '/system-settings/request-policies'
     | '/system-settings/security'
     | '/system-settings/site'
+    | '/system-settings/subscription-quota'
   id:
     | '__root__'
     | '/'
@@ -830,6 +842,7 @@ export interface FileRouteTypes {
     | '/_authenticated/system-settings/request-policies/'
     | '/_authenticated/system-settings/security/'
     | '/_authenticated/system-settings/site/'
+    | '/_authenticated/system-settings/subscription-quota/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1308,6 +1321,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSystemSettingsSiteSectionRouteImport
       parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
     }
+    '/_authenticated/system-settings/subscription-quota/': {
+      id: '/_authenticated/system-settings/subscription-quota/'
+      path: '/subscription-quota'
+      fullPath: '/system-settings/subscription-quota/'
+      preLoaderRoute: typeof AuthenticatedSystemSettingsSubscriptionQuotaIndexRouteImport
+      parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
+    }
   }
 }
 
@@ -1356,6 +1376,7 @@ interface AuthenticatedSystemSettingsRouteRouteChildren {
   AuthenticatedSystemSettingsRequestPoliciesIndexRoute: typeof AuthenticatedSystemSettingsRequestPoliciesIndexRoute
   AuthenticatedSystemSettingsSecurityIndexRoute: typeof AuthenticatedSystemSettingsSecurityIndexRoute
   AuthenticatedSystemSettingsSiteIndexRoute: typeof AuthenticatedSystemSettingsSiteIndexRoute
+  AuthenticatedSystemSettingsSubscriptionQuotaIndexRoute: typeof AuthenticatedSystemSettingsSubscriptionQuotaIndexRoute
 }
 
 const AuthenticatedSystemSettingsRouteRouteChildren: AuthenticatedSystemSettingsRouteRouteChildren =
@@ -1396,6 +1417,8 @@ const AuthenticatedSystemSettingsRouteRouteChildren: AuthenticatedSystemSettings
       AuthenticatedSystemSettingsSecurityIndexRoute,
     AuthenticatedSystemSettingsSiteIndexRoute:
       AuthenticatedSystemSettingsSiteIndexRoute,
+    AuthenticatedSystemSettingsSubscriptionQuotaIndexRoute:
+      AuthenticatedSystemSettingsSubscriptionQuotaIndexRoute,
   }
 
 const AuthenticatedSystemSettingsRouteRouteWithChildren =

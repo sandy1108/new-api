@@ -19,39 +19,48 @@ func FetchCodexWhamUsage(
 	accessToken string,
 	accountID string,
 ) (statusCode int, body []byte, err error) {
+	statusCode, body, _, err = FetchCodexWhamUsageWithHeaders(ctx, client, baseURL, accessToken, accountID)
+	return
+}
+
+// FetchCodexWhamUsageWithHeaders保留Retry-After，旧调用签名继续兼容。
+func FetchCodexWhamUsageWithHeaders(ctx context.Context, client *http.Client, baseURL, accessToken, accountID string) (statusCode int, body []byte, headers http.Header, err error) {
 	if client == nil {
-		return 0, nil, fmt.Errorf("nil http client")
+		return 0, nil, nil, fmt.Errorf("nil http client")
 	}
 	bu := strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if bu == "" {
-		return 0, nil, fmt.Errorf("empty baseURL")
+		return 0, nil, nil, fmt.Errorf("empty baseURL")
 	}
 	at := strings.TrimSpace(accessToken)
 	aid := strings.TrimSpace(accountID)
 	if at == "" {
-		return 0, nil, fmt.Errorf("empty accessToken")
+		return 0, nil, nil, fmt.Errorf("empty accessToken")
 	}
 	if aid == "" {
-		return 0, nil, fmt.Errorf("empty accountID")
+		return 0, nil, nil, fmt.Errorf("empty accountID")
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, bu+"/backend-api/wham/usage", nil)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, nil, err
 	}
 	setCodexWhamRequestHeaders(req, at, aid)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, nil, err
 	}
 	defer resp.Body.Close()
 
-	body, err = io.ReadAll(resp.Body)
+	body, err = io.ReadAll(io.LimitReader(resp.Body, (1<<20)+1))
 	if err != nil {
-		return resp.StatusCode, nil, err
+		return resp.StatusCode, nil, resp.Header.Clone(), err
 	}
-	return resp.StatusCode, body, nil
+	if len(body) > 1<<20 {
+		return resp.StatusCode, nil, resp.Header.Clone(), fmt.Errorf("codex usage response too large")
+	}
+	return resp.StatusCode, body, resp.Header.Clone(), nil
 }
 
 func FetchCodexWhamRateLimitResetCredits(

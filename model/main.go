@@ -398,7 +398,18 @@ func migrateDB() error {
 			return err
 		}
 	}
-	return MigrateClientAccessTables(DB)
+	if err := MigrateClientAccessTables(DB); err != nil {
+		return err
+	}
+	// 私有账本失败只关闭自身，不阻断官方模型转发服务启动。
+	if err := MigratePrivateQuotaTables(DB); err != nil {
+		common.SysError("private quota migration failed; module unavailable")
+		return nil
+	}
+	if _, err := InitializePrivateQuotaSettings(DB, time.Now().Unix()); err != nil {
+		common.SysError("private quota initialization failed; manual recovery required")
+	}
+	return nil
 }
 
 func migrateLOGDB() error {

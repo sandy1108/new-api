@@ -7,6 +7,17 @@ func init() {
 	accessTokenRouteRules["GET /api/log/self/usage-summary"] = accessTokenScopeRule("usage:read")
 
 	for _, key := range []string{
+		"GET /api/private-quota/settings",
+		"PUT /api/private-quota/settings",
+		"GET /api/private-quota/channels",
+		"GET /api/private-quota/subjects",
+		"POST /api/private-quota/subjects",
+		"PUT /api/private-quota/subjects/:id",
+		"GET /api/private-quota/summary",
+		"GET /api/private-quota/cycles",
+		"GET /api/private-quota/trend",
+		"GET /api/private-quota/events",
+		"POST /api/private-quota/events/:id/decision",
 		"GET /api/client-access/scopes",
 		"GET /api/client-access/scopes/:scope/resources",
 		"GET /api/client-access/credentials",
