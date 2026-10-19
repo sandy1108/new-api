@@ -102,6 +102,15 @@ func GetLogsSelfUsageSummary(c *gin.Context) {
 		common.ApiErrorMsg(c, err.Error())
 		return
 	}
+	// 普通用户汇总与官方日志页共用时间范围限制，避免私有接口绕过站点设置。
+	// 管理员查询个人汇总时仍沿用官方管理员豁免规则。
+	if c.GetInt("role") < common.RoleAdminUser {
+		filters.StartTimestamp, err = limitLogTimeRange(filters.StartTimestamp, filters.EndTimestamp)
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+	}
 	filters.UserID = c.GetInt("id")
 	filters.Username = ""
 

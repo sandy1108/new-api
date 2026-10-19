@@ -968,3 +968,14 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 仍待观察：会话到期后自动刷新、真实自然重置/提前重置的长期表现；生产恶意Origin认证态负向测试本轮未执行。交接元数据仍blocked，保留原执行反馈，不因核心写接口通过而擅自改写全部验收已完成。
 - 修正客户端凭据API文档的发布状态和实际导航，补充HTTPS反代部署前提；发布流程补同源配置、真实写入与刷新验收。知识库现有需求/技术设计/实施计划/凭据开发记录同步生产进度，历史阶段记录保留并明确以最新进度为准。
 - 本轮仅文档收尾，不改变已部署镜像业务字节，不重复构建或重启服务。用户授权提交并推送至myfork；仅同步personal/main与当前feature/subscription-quota-ledger，开发分支采用快进对齐，不改写历史、不推origin、不移动历史升级/备份分支、不提交私人Compose及既有无关未跟踪文件。远端成功与否以实际push后核验为准。
+
+## 2026-10-19：官方rc.45开发同步（进行中，未发布）
+
+- 用户授权开发同步，沿用Standard；目标仅官方`v1.0.0-rc.45`（`6cf0d90b5ff27f901697dddd61e0c28aba8efefc`），不包含其后main提交。相对官方rc.41共109提交。个人基线`e4eec7208661b626dc57265a23ab880d0552ee9d`；开发分支`upgrade/upstream-main-20261019`，回退分支`backup/pre-sync-20261019`，采用merge不改写共享历史。
+- 唯一显式冲突`controller/codex_usage.go`：保留私有统一OAuth刷新协调器（锁内重读、过期凭据复用、缓存失效），同时接入官方代理/TLS设置和国际化错误。聚合、客户端凭据、订阅额度账本模块及其路由/迁移/采集入口保留。
+- 补充普通用户私有self聚合的官方日志时间范围限制；复用`limitLogTimeRange`，管理员保持豁免。已有测试文件覆盖超范围拒绝、缺start默认范围、精确边界、管理员豁免；先观察RED两项失败，再修复GREEN通过。
+- 初轮定向测试误写不存在的`service/quotaledger`，整条命令exit 1，实际controller/middleware/router/clientaccess通过；正确模块为`service/privatequota`。随后根模块测试除根包缺少待构建`web/dist/index.html`外各业务包通过（整条仍exit 1）；不算全库通过。独立relaykit/tokenkit均在`GOWORK=off`下测试与构建exit 0。完整构建及后续根包复验、三数据库迁移与永久测试回归尚在进行。
+- 从暂存树归档干净源码，排除既有未跟踪文件；前端使用官方完整Dockerfile、锁文件及Bun 1.4.0构建。构建步骤限内存2800MiB、CPU亲和0/1，不重启Docker。生产Compose/容器/PG/Redis未改动，永久测试尚未切换。
+- 证据保存在Git外`.backups/new-api/rc45-sync-20261019-01/`。本轮不合入personal/main、不push、不构建正式候选、不切生产；后续按实际结果更新本节。
+- 补齐真实前端dist后，根模块完整`go test -count=1 -timeout=10m ./...`退出0。侧栏自动合并留下旧测试调用已删除的`getNavGroupsForPath`：改用官方`resolveSidebarView(...).getNavGroups(t)`，以稳定URL断言私有凭据入口角色隔离；两用例、类型检查和该文件lint/format通过。Bun直接运行Vitest曾遇到Zod导入异常；在同一锁文件依赖上改用Node 24.20.0执行Vitest，定向测试通过，全量仍进行中。
+- 全量lint报告158 error/66 warning；官方rc.45原样源码、同一依赖复跑得到相同结果，按规则与文件归一化的224项诊断一致，无合并新增诊断；保留上游lint欠账，不擅自批量格式化官方代码。完整前端构建已通过，数据库与测试部署仍待完成。

@@ -7,6 +7,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
@@ -115,4 +116,42 @@ func TestGetLogsUsageSummaryRejectsInvalidTimeRange(t *testing.T) {
 	payload := decodeUsageSummaryResponse(t, recorder)
 	require.False(t, payload.Success)
 	require.Equal(t, "invalid time range", payload.Message)
+}
+
+func TestSelfUsageSummaryHonorsOfficialLogTimeRange(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		query        string
+		role         int
+		wantSuccess  bool
+		wantRequests int64
+	}{
+		{name: "ordinary user cannot exceed configured range", query: "?start_timestamp=1&end_timestamp=172802", role: common.RoleCommonUser, wantSuccess: false},
+		{name: "missing start includes recent logs only", role: common.RoleCommonUser, wantSuccess: true, wantRequests: 1},
+		{name: "exact range boundary remains allowed", query: "?start_timestamp=1&end_timestamp=86401", role: common.RoleCommonUser, wantSuccess: true, wantRequests: 1},
+		{name: "admin self query retains unrestricted range", query: "?start_timestamp=1&end_timestamp=172802", role: common.RoleAdminUser, wantSuccess: true, wantRequests: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupUsageSummaryControllerDB(t)
+			require.NoError(t, model.LOG_DB.Create(&model.Log{
+				UserId: 1, Username: "alice", CreatedAt: common.GetTimestamp(), Type: model.LogTypeConsume,
+				TokenId: 11, TokenName: "primary", ChannelId: 7, ModelName: "gpt-a",
+			}).Error)
+			setting := operation_setting.GetLogSetting()
+			old := *setting
+			t.Cleanup(func() { *setting = old })
+			setting.MaxRangeDays = 1
+			recorder := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(recorder)
+			ctx.Set("id", 1)
+			ctx.Set("role", tc.role)
+			ctx.Request = httptest.NewRequest(http.MethodGet, "/api/log/self/usage-summary"+tc.query, nil)
+			GetLogsSelfUsageSummary(ctx)
+			payload := decodeUsageSummaryResponse(t, recorder)
+			require.Equal(t, tc.wantSuccess, payload.Success, payload.Message)
+			if tc.wantSuccess {
+				require.Equal(t, tc.wantRequests, payload.Data.TotalRequests)
+			}
+		})
+	}
 }

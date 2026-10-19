@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ROLE } from '@/lib/roles'
 
-import { getNavGroupsForPath } from '../lib/sidebar-view-registry'
+import { resolveSidebarView } from '../lib/sidebar-view-registry'
 
 const authStore = vi.hoisted(() => ({ getState: vi.fn() }))
 
@@ -17,12 +17,13 @@ describe('system settings navigation role visibility', () => {
   it('hides client access credentials from non-root administrators', () => {
     authStore.getState.mockReturnValue({ auth: { user: { role: ROLE.ADMIN } } })
 
-    const groups = getNavGroupsForPath('/system-settings/site', t) ?? []
+    const groups =
+      resolveSidebarView('/system-settings/site')?.getNavGroups(t) ?? []
 
     expect(
       groups
         .flatMap((group) => group.items)
-        .some((item) => item.title === '客户端访问凭据')
+        .some((item) => item.url === '/system-settings/client-access')
     ).toBe(false)
   })
 
@@ -31,12 +32,13 @@ describe('system settings navigation role visibility', () => {
       auth: { user: { role: ROLE.SUPER_ADMIN } },
     })
 
-    const groups = getNavGroupsForPath('/system-settings/site', t) ?? []
+    const groups =
+      resolveSidebarView('/system-settings/site')?.getNavGroups(t) ?? []
 
     expect(
       groups
         .flatMap((group) => group.items)
-        .some((item) => item.title === '客户端访问凭据')
+        .some((item) => item.url === '/system-settings/client-access')
     ).toBe(true)
   })
 })
