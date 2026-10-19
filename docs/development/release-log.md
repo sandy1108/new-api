@@ -913,3 +913,13 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 用户明确授权继续到永久测试部署；沿用Standard与现有feature分支，提交仅限本任务15个文件，无关未跟踪文件保留，不合并稳定分支或推送远端。
 - 预留开发镜像序号`dev-20261019-02`，提交后附精确短SHA；从Git提交归档构建上下文，完整Dockerfile仅在临时副本为Go编译设置`GOMAXPROCS=2 GOMEMLIMIT=1400MiB -p 2`，不改仓库Dockerfile或应用运行限制。
 - 本轮备份/证据目录为Git外`.backups/new-api/quota-ledger-weekly-test-20261019-02/`；切换前备份测试PostgreSQL、应用data、Compose及镜像记录。回滚镜像为当前测试`dev-20261019-01-g6e99fad56`；只重建测试new-api应用，不重启Docker或生产、不触碰`.volumes`、测试PG/Redis或用户账号/采集开关。构建与部署结果在完成后补记。
+
+### 2026-10-19：周账本修复永久测试部署完成（待用户验收）
+
+- 功能提交`ff44dbd32a450ed3027bfb45d6a4e386feef1d0f`，15个本任务文件；提交前Go周重置/即时累计/窗口隔离/空闲回归及干净依赖前端3文件6用例再次通过。本轮没有稳定分支合并或远端推送。
+- 完整Docker构建通过，临时上下文仅限制Go编译并发；部署镜像`new-api:dev-20261019-03-gff44dbd32`，ID `sha256:8da97187d17d0ed8b65ae9edd6363a0217a368e3ff9692eb669ae6bd98ebf6b8`，linux/arm64，revision匹配完整功能提交。序号02首次构建误写revision标签，未部署；以缓存构建03修正，不覆盖既有标签。
+- 新鲜测试备份同上述证据目录：PostgreSQL dump SHA-256 `ed021a52db1a7492da50e7fe8b25943c0e3afd3557cd21b7ff29b2824530691b`，应用data归档`ef88ce1ed68054cb36f52a06806d61e49bdaabed37f57aee8595b659ee65d7a5`；pg_restore目录及tar校验可读，Compose/镜像inspect/容器基线已保留。备份为在线快照，不声称跨资源事务一致。
+- 测试Compose相对切换前快照仅一行镜像变更，config校验通过；使用`up -d --no-build --pull never --no-deps new-api`仅重建测试app。入口仍`http://127.0.0.1:3317/`；app running、RestartCount=0、镜像ID匹配，status成功，无启动fatal/panic或迁移失败。测试PG/Redis与生产应用/PG/Redis的ID、启动时间、重启次数以及生产Compose SHA全部保持不变。
+- 21项认证态/页面HTTP回归通过：加密登录、原用户/凭据/日志汇总/PAT目录、账本配置/主体、周summary新增质量字段、趋势/轮次/事件及五个页面；首页引用六项JS/CSS均200。首轮验证脚本误将嵌套summary当作顶层字段，修正脚本后通过，未修改业务接口。仅结束自动化自己的登录会话，没有调用手动上游额度查询、修改开关或新增凭据。
+- 原用户/令牌/渠道/客户端凭据/授权行数及既有176条采样在切换检查点保持；全局开启、10分钟、主体开启/渠道绑定及版本保留。真实报表已显示周当前53%、本月观测0.08周份、周重置0次/待确认0个，证明正常增长无需等待重置即可累计；该读数是验收时快照，不保证后续固定不变。5小时只保留状态展示。已有采集按原配置继续，事件投影随下次成功采集刷新。
+- 回滚只需将同一测试Compose镜像行恢复`new-api:dev-20261019-01-g6e99fad56`，再运行同一`up -d --no-build --pull never --no-deps new-api`；本次无表结构变更，不自动还原数据库。旧测试镜像与备份保留。浏览器视觉/交互由用户验收，长期采集/自然重置仍需观察；未部署生产、未重启Docker或触碰`.volumes`。
