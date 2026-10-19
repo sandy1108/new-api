@@ -36,3 +36,15 @@ export function ledgerTime(seconds: number, locale?: string): string {
     timeStyle: 'short',
   }).format(new Date(seconds * 1000))
 }
+
+// 1份等于一整轮周额度；普通两位小数会把微小的有效增长显示为0。
+// 公共formatNumber尚不支持精度选项，因此在私有模块保留四位小数，不影响官方页面。
+export function formatWeeklyUnits(
+  value: number | null | undefined,
+  locale?: string
+): string {
+  if (value == null || !Number.isFinite(value)) return '—'
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 4 }).format(
+    value
+  )
+}

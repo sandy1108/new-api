@@ -79,12 +79,19 @@ func SummarizeMonth(ledger Ledger, month string, location *time.Location) (Month
 	for _, rejected := range ledger.Rejected {
 		if rejected.FetchedAt >= from && rejected.FetchedAt < to {
 			summary.InvalidSamples++
+			if window := summary.window(rejected.WindowSeconds); window != nil {
+				window.InvalidSamples++
+			}
 		}
 	}
 	var gaps []ObservationGap
 	for _, gap := range ledger.Gaps {
 		left, right := max(from, gap.From), min(to, gap.To)
 		if left < right {
+			// 单一窗口缺口由相邻观测生成，互不重叠；全局仍保留原来的时间并集契约。
+			if window := summary.window(gap.WindowSeconds); window != nil {
+				window.GapSeconds += right - left
+			}
 			gaps = append(gaps, ObservationGap{From: left, To: right})
 		}
 	}

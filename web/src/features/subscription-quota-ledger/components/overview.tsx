@@ -15,7 +15,7 @@ import { toIntlLocale } from '@/i18n/languages'
 import { formatNumber } from '@/lib/format'
 
 import { getSummary, getTrend, quotaKey } from '../api'
-import { ledgerTime } from '../lib/forms'
+import { formatWeeklyUnits, ledgerTime } from '../lib/forms'
 import type { Filters } from '../types'
 
 export function QuotaOverview(props: { filters: Filters }) {
@@ -43,42 +43,56 @@ export function QuotaOverview(props: { filters: Filters }) {
     )
   }
   const data = summary.data
-  const window =
-    props.filters.window_seconds === 604800
-      ? data.summary.seven_day
-      : data.summary.five_hour
-  const current = data.current[String(props.filters.window_seconds)]
+  const window = data.summary.seven_day
+  const current = data.current['604800']
+  const fiveHour = data.current['18000']
+  let collectionStatus = t('Collecting')
+  if (!data.collection_enabled || !data.subject.enabled) {
+    collectionStatus = t('Paused')
+  } else if (!current) {
+    collectionStatus = t('Waiting for first observation')
+  } else if (
+    data.subject.error_code ||
+    current?.stale ||
+    current?.quality_code
+  ) {
+    collectionStatus = t('Collection needs attention')
+  }
   const cards = [
     {
-      title: t('Observed quota units'),
-      value: formatNumber(window.observed_units, locale),
+      title: t('Monthly observed weekly units'),
+      value: formatWeeklyUnits(window.observed_units, locale),
     },
     {
-      title: t('Current usage'),
+      title: t('Current weekly usage'),
       value:
         current?.used_basis_points == null
           ? '—'
           : `${formatNumber(current.used_basis_points / 100, locale)}%`,
     },
     {
-      title: t('Evaluable unused units'),
+      title: t('Estimated unused weekly units'),
       value: window.evaluated_cycles
-        ? formatNumber(window.unused_units, locale)
+        ? formatWeeklyUnits(window.unused_units, locale)
         : '—',
     },
     {
-      title: t('Observed resets'),
+      title: t('Observed weekly resets'),
       value: formatNumber(window.reset_count, locale),
+    },
+    {
+      title: t('Relative to four weekly units'),
+      value: `${formatNumber((window.observed_units / 4) * 100, locale)}%`,
     },
   ]
   return (
     <div className='space-y-4' aria-label={t('Quota overview')}>
       <p className='text-muted-foreground text-sm'>
         {t(
-          'Quota observations are estimates, not billing. Initial usage is a baseline; weekly and five-hour units are separate.'
+          'One unit equals 100% of a seven-day quota. Initial usage is a baseline; five-hour quota is status only.'
         )}
       </p>
-      {!data.last_observed_at && (
+      {!current && (
         <EmptyState
           title={t('Waiting for first observation')}
           description={t(
@@ -86,7 +100,7 @@ export function QuotaOverview(props: { filters: Filters }) {
           )}
         />
       )}
-      <div className='grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4'>
+      <div className='grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-5'>
         {cards.map((card) => (
           <Card key={card.title} className='min-w-0'>
             <CardHeader>
@@ -98,10 +112,23 @@ export function QuotaOverview(props: { filters: Filters }) {
           </Card>
         ))}
       </div>
+      <p className='text-muted-foreground text-xs'>
+        {t(
+          'Increases count after each successful observation, not only at resets. This page refreshes every minute; collection follows the configured interval.'
+        )}
+      </p>
+      <p className='text-muted-foreground text-xs'>
+        {t(
+          'Four weekly units are a reference, not the actual monthly allowance or unused quota. Unused estimates may overstate waste between observations.'
+        )}
+      </p>
       <div
         className='bg-muted/40 space-y-1 rounded-lg border p-4 text-sm'
         role='status'
       >
+        <p>
+          {t('Collection status')}: {collectionStatus}
+        </p>
         <p>
           {t('Last observation')}:{' '}
           {ledgerTime(current?.fetched_at ?? 0, locale)} · {t('Expected reset')}
@@ -128,9 +155,9 @@ export function QuotaOverview(props: { filters: Filters }) {
         </p>
         <p>
           {t('Observation gaps (seconds)')}:{' '}
-          {formatNumber(data.summary.gap_seconds, locale)} ·{' '}
+          {formatNumber(window.gap_seconds, locale)} ·{' '}
           {t('Invalid observations')}:{' '}
-          {formatNumber(data.summary.invalid_samples, locale)}
+          {formatNumber(window.invalid_samples, locale)}
         </p>
         <p>
           {t('Coverage starts')}:{' '}
@@ -139,17 +166,49 @@ export function QuotaOverview(props: { filters: Filters }) {
           {formatNumber(window.evaluated_cycles, locale)}
         </p>
       </div>
+      <Card role='region' aria-label={t('Five-hour quota status')}>
+        <CardHeader>
+          <CardTitle>{t('Five-hour quota status')}</CardTitle>
+        </CardHeader>
+        <CardContent className='flex flex-col gap-2 text-sm'>
+          <p className='text-2xl font-semibold tabular-nums'>
+            {fiveHour?.used_basis_points == null
+              ? '—'
+              : `${formatNumber(fiveHour.used_basis_points / 100, locale)}%`}
+          </p>
+          <p>
+            {t('Expected reset')}: {ledgerTime(fiveHour?.reset_at ?? 0, locale)}{' '}
+            (Asia/Shanghai)
+          </p>
+          <p>
+            {t('Last observation')}:{' '}
+            {ledgerTime(fiveHour?.fetched_at ?? 0, locale)}
+          </p>
+          {(!fiveHour || fiveHour.stale || fiveHour.quality_code) && (
+            <p className='text-muted-foreground'>
+              {t(
+                'Five-hour status is stale or unavailable; weekly accounting is independent.'
+              )}
+            </p>
+          )}
+          <p className='text-muted-foreground'>
+            {t(
+              'Status only. Five-hour quota is not counted as weekly usage or unused units.'
+            )}
+          </p>
+        </CardContent>
+      </Card>
       <div className='grid min-w-0 gap-4 lg:grid-cols-3'>
         <Card className='min-w-0 lg:col-span-2'>
           <CardHeader>
-            <CardTitle>{t('Daily observed quota units')}</CardTitle>
+            <CardTitle>{t('Daily observed weekly units')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ChartContainer
               className='h-64 w-full'
               config={{
                 observed_units: {
-                  label: t('Observed quota units'),
+                  label: t('Observed weekly units'),
                   color: 'var(--primary)',
                 },
               }}
@@ -161,9 +220,19 @@ export function QuotaOverview(props: { filters: Filters }) {
                   tickFormatter={(value: string) => value.slice(8)}
                 />
                 <YAxis
-                  tickFormatter={(value: number) => formatNumber(value, locale)}
+                  tickFormatter={(value: number) =>
+                    formatWeeklyUnits(value, locale)
+                  }
                 />
-                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value) =>
+                        formatWeeklyUnits(Number(value), locale)
+                      }
+                    />
+                  }
+                />
                 <Line
                   dataKey='observed_units'
                   stroke='var(--color-observed_units)'
@@ -181,7 +250,7 @@ export function QuotaOverview(props: { filters: Filters }) {
         </Card>
         <Card className='min-w-0'>
           <CardHeader>
-            <CardTitle>{t('Reset distribution')}</CardTitle>
+            <CardTitle>{t('Weekly reset distribution')}</CardTitle>
           </CardHeader>
           <CardContent className='space-y-4'>
             <p>

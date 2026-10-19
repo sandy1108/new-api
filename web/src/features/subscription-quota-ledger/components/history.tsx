@@ -25,7 +25,7 @@ import { formatNumber } from '@/lib/format'
 import { handleServerError } from '@/lib/handle-server-error'
 
 import { decideEvent, getCycles, getEvents, quotaKey } from '../api'
-import { decisionSchema, ledgerTime } from '../lib/forms'
+import { decisionSchema, formatWeeklyUnits, ledgerTime } from '../lib/forms'
 import type { Filters, QuotaEvent } from '../types'
 import { QuotaSelect } from './quota-select'
 
@@ -76,13 +76,13 @@ export function QuotaHistory(props: { filters: Filters }) {
               },
               {
                 id: 'usage',
-                header: t('Observed quota units'),
+                header: t('Observed weekly units'),
                 cell: (row) =>
-                  formatNumber(row.observed_basis_points / 10000, locale),
+                  formatWeeklyUnits(row.observed_basis_points / 10000, locale),
               },
               {
                 id: 'unused',
-                header: t('Evaluable unused units'),
+                header: t('Estimated unused weekly units'),
                 cell: (row) =>
                   row.partial ||
                   row.has_gap ||
@@ -90,7 +90,7 @@ export function QuotaHistory(props: { filters: Filters }) {
                   !row.ended_at ||
                   row.ended_by === 'segment_change'
                     ? '—'
-                    : formatNumber(
+                    : formatWeeklyUnits(
                         (10000 - row.high_water_basis_points) / 10000,
                         locale
                       ),
@@ -190,7 +190,6 @@ export function QuotaHistory(props: { filters: Filters }) {
           key={`${event.id}/${event.version}`}
           event={event}
           revision={events.data.ledger_revision ?? 0}
-          windowSeconds={props.filters.window_seconds}
           onClose={() => setEvent(null)}
         />
       )}
@@ -232,7 +231,6 @@ function eventLabel(value: string, t: (key: string) => string): string {
 function EventDecision(props: {
   event: QuotaEvent
   revision: number
-  windowSeconds: number
   onClose: () => void
 }) {
   const { t, i18n } = useTranslation()
@@ -244,8 +242,7 @@ function EventDecision(props: {
   })
   const decision = form.watch('decision')
   const preview = props.event.previews[decision]
-  const window =
-    props.windowSeconds === 604800 ? preview?.seven_day : preview?.five_hour
+  const window = preview?.seven_day
   const mutation = useMutation({
     mutationFn: decideEvent,
     onSuccess: async () => {
@@ -311,12 +308,13 @@ function EventDecision(props: {
             )}
           />
           <p className='text-sm' role='status'>
-            {t('Preview after decision')}: {t('Observed quota units')}{' '}
-            {formatNumber(window?.observed_units, locale)} ·{' '}
-            {t('Observed resets')} {formatNumber(window?.reset_count, locale)} ·{' '}
-            {t('Evaluable unused units')}{' '}
+            {t('Preview after decision')}: {t('Observed weekly units')}{' '}
+            {formatWeeklyUnits(window?.observed_units, locale)} ·{' '}
+            {t('Observed weekly resets')}{' '}
+            {formatNumber(window?.reset_count, locale)} ·{' '}
+            {t('Estimated unused weekly units')}{' '}
             {window?.evaluated_cycles
-              ? formatNumber(window.unused_units, locale)
+              ? formatWeeklyUnits(window.unused_units, locale)
               : '—'}
           </p>
           <FormField

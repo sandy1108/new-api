@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -314,6 +315,11 @@ function SubjectForm(props: {
               <FormControl>
                 <Input maxLength={128} {...field} />
               </FormControl>
+              <FormDescription>
+                {t(
+                  'A custom name only; collection status is shown separately.'
+                )}
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

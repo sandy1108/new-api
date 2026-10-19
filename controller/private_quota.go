@@ -233,7 +233,8 @@ func privateQuotaWindowDTO(window quota.WindowSummary) gin.H {
 	if window.Current != nil {
 		current = privateQuotaCycleDTO(*window.Current)
 	}
-	return gin.H{"observed_units": float64(window.ObservedBasisPoints) / 10000, "unused_units": float64(window.UnusedBasisPoints) / 10000,
+	return gin.H{"gap_seconds": window.GapSeconds, "invalid_samples": window.InvalidSamples,
+		"observed_units": float64(window.ObservedBasisPoints) / 10000, "unused_units": float64(window.UnusedBasisPoints) / 10000,
 		"reset_count": window.ResetCount, "early_resets": window.EarlyResets, "expired_resets": window.ExpiredResets, "manual_resets": window.ManualResets,
 		"pending_events": window.PendingEvents, "pending_since": window.PendingSince, "partial_cycles": window.PartialCycles, "excluded_cycles": window.ExcludedCycles, "evaluated_cycles": window.EvaluatedCycles, "current": current}
 }

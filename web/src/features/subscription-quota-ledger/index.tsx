@@ -26,20 +26,20 @@ export function SubscriptionQuotaLedger(props: {
   const [subjectPage, setSubjectPage] = useState(1)
   const [selectedSubject, setSelectedSubject] = useState(0)
   const [month, setMonth] = useState(beijingMonth)
-  const [windowSeconds, setWindowSeconds] = useState(604800)
   const subjects = useQuery({
     queryKey: [...quotaKey, 'subjects', subjectPage],
     queryFn: () => getSubjects(subjectPage),
     refetchInterval: 60_000,
   })
-  // 不使用placeholderData；切账号/月/窗口时先展示加载，绝不沿用另一账号结果。
+  // 周额度是唯一累计单位；5小时仅在概览中展示状态，不提供份数切换。
+  // 不使用placeholderData；切账号/月时先展示加载，绝不沿用另一账号结果。
   const subject =
     subjects.data?.items.find((item) => item.id === selectedSubject) ??
     subjects.data?.items[0]
   const filters = {
     subject_id: subject?.id ?? 0,
     month,
-    window_seconds: windowSeconds,
+    window_seconds: 604800,
   }
   return (
     <SectionPageLayout>
@@ -122,15 +122,6 @@ export function SubscriptionQuotaLedger(props: {
                             }
                           }}
                         />
-                        <QuotaSelect
-                          label={t('Quota window')}
-                          value={String(windowSeconds)}
-                          onChange={(value) => setWindowSeconds(Number(value))}
-                          options={[
-                            { value: '604800', label: t('Seven-day quota') },
-                            { value: '18000', label: t('Five-hour quota') },
-                          ]}
-                        />
                         {subjects.data.total > 100 && (
                           <>
                             <Button
@@ -154,13 +145,13 @@ export function SubscriptionQuotaLedger(props: {
                       </div>
                       <TabsContent value='overview'>
                         <QuotaOverview
-                          key={`${subject.id}/${month}/${windowSeconds}`}
+                          key={`${subject.id}/${month}`}
                           filters={filters}
                         />
                       </TabsContent>
                       <TabsContent value='history'>
                         <QuotaHistory
-                          key={`${subject.id}/${month}/${windowSeconds}`}
+                          key={`${subject.id}/${month}`}
                           filters={filters}
                         />
                       </TabsContent>

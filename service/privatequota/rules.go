@@ -68,7 +68,7 @@ func BuildLedger(samples []Sample, decisions []Decision) (Ledger, error) {
 		ids[sample.ID], batches[batchKey] = sample, sample
 		state := states[sample.WindowSeconds]
 		if reason := sample.invalidReason(); reason != "" {
-			ledger.Rejected = append(ledger.Rejected, RejectedSample{sample.ID, sample.FetchedAt, reason})
+			ledger.Rejected = append(ledger.Rejected, RejectedSample{SampleID: sample.ID, FetchedAt: sample.FetchedAt, Reason: reason, WindowSeconds: sample.WindowSeconds})
 			if state != nil {
 				// 边界前的坏样本同样会破坏证据链，不能只检查候选生成后的失败。
 				state.interrupted = true
@@ -80,7 +80,7 @@ func BuildLedger(samples []Sample, decisions []Decision) (Ledger, error) {
 			continue
 		}
 		if state != nil && sample.FetchedAt <= state.last.FetchedAt {
-			ledger.Rejected = append(ledger.Rejected, RejectedSample{sample.ID, sample.FetchedAt, "not_a_new_observation"})
+			ledger.Rejected = append(ledger.Rejected, RejectedSample{SampleID: sample.ID, FetchedAt: sample.FetchedAt, Reason: "not_a_new_observation", WindowSeconds: sample.WindowSeconds})
 			continue
 		}
 		if ledger.CoverageStart == 0 {
@@ -119,7 +119,9 @@ func BuildLedger(samples []Sample, decisions []Decision) (Ledger, error) {
 		}
 		if state.pending != nil {
 			pending := state.pending
-			if !sameResetPlan(sample.ResetAt, pending.first.ResetAt) ||
+			// 5小时空闲窗口的截止会随查询滑动；连续空闲证据仍可确认前一轮重置。
+			idleContinuation := fiveHourIdle(pending.first) && followsFiveHourIdle(state.last, sample)
+			if (!sameResetPlan(sample.ResetAt, pending.first.ResetAt) && !idleContinuation) ||
 				*pending.first.UsedBasisPoints-*sample.UsedBasisPoints >= significantDrop {
 				pending.ambiguous = true
 			}
@@ -132,6 +134,14 @@ func BuildLedger(samples []Sample, decisions []Decision) (Ledger, error) {
 				state.pending = nil
 			}
 			state.last = sample
+			continue
+		}
+		// 空闲截止后移不是领取新额度；开始使用后截止固定，也仍属于同一轮。
+		// 显式人工决定优先，不能因规则修正而丢失已有决定链。
+		_, hasDecision := effective[boundaryEvent(state.last, sample, ChangePlan, EventPending).Key]
+		if !hasGap && !interrupted && !hasDecision && followsFiveHourIdle(state.last, sample) {
+			ledger.advanceCycle(state.cycleIndex, sample)
+			state.last, state.dropHigh, state.lowStreak = sample, max(state.dropHigh, *sample.UsedBasisPoints), 0
 			continue
 		}
 		if *sample.UsedBasisPoints < state.dropHigh {
@@ -153,7 +163,11 @@ func BuildLedger(samples []Sample, decisions []Decision) (Ledger, error) {
 		}
 		// 只有向后延展的新计划且有回落证据，才自动候选重置；时间前移也可能只是校正。
 		zeroExpired := state.dropHigh == 0 && *sample.UsedBasisPoints == 0 && sample.FetchedAt >= state.last.ResetAt
-		canReset := sample.ResetAt > state.last.ResetAt+resetTolerance && (dropped || zeroExpired)
+		// 周额度低用量也可能真实重置：到期后的任意回落，或提前归零，均进入双样本确认。
+		// 非零的提前微小回落仍可能是校正，不扩大原有自动确认范围。
+		weeklyLowReset := sample.WindowSeconds == SevenDaySeconds && *sample.UsedBasisPoints < state.dropHigh &&
+			(sample.FetchedAt >= state.last.ResetAt || *sample.UsedBasisPoints == 0)
+		canReset := sample.ResetAt > state.last.ResetAt+resetTolerance && (dropped || zeroExpired || weeklyLowReset)
 		if canReset {
 			switch {
 			case sample.FetchedAt < state.last.ResetAt-resetTolerance:
@@ -230,6 +244,17 @@ func sameObservation(a, b Sample) bool {
 
 func sameResetPlan(a, b int64) bool {
 	return a >= b-resetTolerance && a <= b+resetTolerance
+}
+
+// fiveHourIdle仅识别已记录的0%+完整5小时滑动截止，不推断周额度或非零窗口。
+func fiveHourIdle(sample Sample) bool {
+	return sample.WindowSeconds == FiveHourSeconds && sample.UsedBasisPoints != nil &&
+		*sample.UsedBasisPoints == 0 && sameResetPlan(sample.ResetAt, sample.FetchedAt+FiveHourSeconds)
+}
+
+func followsFiveHourIdle(before, after Sample) bool {
+	return fiveHourIdle(before) && after.WindowSeconds == FiveHourSeconds &&
+		after.FetchedAt < before.ResetAt-resetTolerance && after.ResetAt >= before.ResetAt-resetTolerance
 }
 
 func boundaryEvent(before, after Sample, kind EventKind, status EventStatus) Event {

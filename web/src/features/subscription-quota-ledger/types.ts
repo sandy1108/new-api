@@ -30,6 +30,8 @@ export type Cycle = {
   has_correction: boolean
 }
 export type WindowSummary = {
+  gap_seconds: number
+  invalid_samples: number
   observed_units: number
   unused_units: number
   reset_count: number

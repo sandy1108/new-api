@@ -96,9 +96,10 @@ type ObservationGap struct {
 }
 
 type RejectedSample struct {
-	SampleID  int64
-	FetchedAt int64
-	Reason    string
+	SampleID      int64
+	FetchedAt     int64
+	Reason        string
+	WindowSeconds int64
 }
 
 // Ledger是可重建结果，没有数据库、系统时钟或网络副作用；只接受一个主体。
@@ -115,6 +116,8 @@ type Ledger struct {
 }
 
 type WindowSummary struct {
+	GapSeconds          int64
+	InvalidSamples      int
 	ObservedBasisPoints int64
 	UnusedBasisPoints   int64
 	ResetCount          int

@@ -1,22 +1,34 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   cleanup,
+  act,
   fireEvent,
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import i18next from 'i18next'
 import { useState } from 'react'
 import { afterEach, expect, test, vi } from 'vitest'
 
+import { toIntlLocale } from '@/i18n/languages'
 import { api } from '@/lib/api'
 
 import { SubscriptionQuotaLedger } from '..'
-import { beijingMonth, decisionSchema, settingsSchema } from '../lib/forms'
+import { quotaKey } from '../api'
+import {
+  beijingMonth,
+  decisionSchema,
+  formatWeeklyUnits,
+  settingsSchema,
+} from '../lib/forms'
 import type { Summary, View } from '../types'
 
 const window = {
+  gap_seconds: 0,
+  invalid_samples: 0,
   observed_units: 0.3,
   unused_units: 0,
   reset_count: 0,
@@ -64,6 +76,7 @@ function renderLedger() {
 }
 
 test('switching subscription loads its own summary and preserves unknown versus zero', async () => {
+  let observedUnits = 0.0034
   vi.spyOn(api, 'get').mockImplementation(async (url, config) => {
     if (url.endsWith('/subjects')) {
       return { data: { success: true, data: { items: subjects, total: 2 } } }
@@ -85,12 +98,22 @@ test('switching subscription loads its own summary and preserves unknown versus 
         timezone: 'Asia/Shanghai',
         coverage_start: 1,
         rules_version: 1,
-        seven_day: { ...window, observed_units: id === 1 ? 0.3 : 0.7 },
-        five_hour: window,
-        gap_seconds: 0,
-        invalid_samples: 0,
+        seven_day: {
+          ...window,
+          observed_units: id === 1 ? observedUnits : 0.7,
+        },
+        five_hour: { ...window, observed_units: 99, reset_count: 88 },
+        gap_seconds: 9900,
+        invalid_samples: 99,
       },
       current: {
+        '18000': {
+          used_basis_points: 8100,
+          reset_at: 1790830800,
+          fetched_at: 1790812800,
+          quality_code: '',
+          stale: false,
+        },
         '604800': {
           used_basis_points: id === 1 ? 0 : null,
           reset_at: 0,
@@ -104,13 +127,32 @@ test('switching subscription loads its own summary and preserves unknown versus 
     return { data: { success: true, data: summary } }
   })
   renderLedger()
-  await screen.findByText('0.3')
+  await screen.findByText('0.0034')
+  expect(
+    screen.queryByRole('combobox', { name: 'Quota window' })
+  ).not.toBeInTheDocument()
+  const shortWindow = screen.getByRole('region', {
+    name: 'Five-hour quota status',
+  })
+  expect(within(shortWindow).getByText('81%')).toBeInTheDocument()
+  expect(within(shortWindow).getByText(/Expected reset/)).toBeInTheDocument()
+  expect(screen.queryByText('99')).not.toBeInTheDocument()
+  expect(screen.queryByText('88')).not.toBeInTheDocument()
+  expect(screen.getByText(/Observation gaps \(seconds\)/)).toHaveTextContent(
+    'Observation gaps (seconds): 0 · Invalid observations: 0'
+  )
+  expect(screen.getByText('Collection status: Paused')).toBeInTheDocument()
   expect(screen.getByText('0%')).toBeInTheDocument()
+  // 模拟下一次成功观测后的本地刷新：即使没有重置，累计值也应立即增长。
+  observedUnits = 0.0134
+  await act(() => client.invalidateQueries({ queryKey: quotaKey }))
+  expect(await screen.findByText('0.0134')).toBeInTheDocument()
   const user = userEvent.setup()
   await user.click(screen.getByRole('combobox', { name: 'Subscription' }))
   await user.click(await screen.findByRole('option', { name: 'Plus 2' }))
   await screen.findByText('0.7')
-  expect(screen.queryByText('0.3')).not.toBeInTheDocument()
+  expect(screen.queryByText('0.0134')).not.toBeInTheDocument()
+  expect(screen.getByText('17.5%')).toBeInTheDocument()
   expect(screen.queryByText('0%')).not.toBeInTheDocument()
   expect(
     screen.getByText('Collection is paused, stale or incomplete')
@@ -126,6 +168,28 @@ test('switching subscription loads its own summary and preserves unknown versus 
       })
     )
   )
+  await act(() => i18next.changeLanguage('fr'))
+  expect(screen.getByText('0,7')).toBeInTheDocument()
+  await act(() => i18next.changeLanguage('en'))
+})
+
+test('weekly unit formatting preserves small increments across supported interface locales', () => {
+  for (const [language, expected] of [
+    ['zhCN', '0.0034'],
+    ['zhTW', '0.0034'],
+    ['en', '0.0034'],
+    ['fr', '0,0034'],
+    ['ru', '0,0034'],
+    ['ja', '0.0034'],
+    ['vi', '0,0034'],
+  ]) {
+    expect(formatWeeklyUnits(0.0034, toIntlLocale(language))).toBe(expected)
+  }
+  expect(() =>
+    formatWeeklyUnits(0.0034, toIntlLocale('not_a_locale'))
+  ).not.toThrow()
+  expect(formatWeeklyUnits(null, 'en')).toBe('—')
+  expect(formatWeeklyUnits(0, 'en')).toBe('0')
 })
 
 test('empty subscriptions offer settings and failed queries show retry', async () => {
