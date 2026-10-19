@@ -48,6 +48,50 @@ func setupDashboardAuthMiddlewareTest(t *testing.T) {
 	})
 }
 
+func TestPrivateQuotaRequiresRootSessionAndSameOriginJSON(t *testing.T) {
+	setupDashboardAuthMiddlewareTest(t)
+	user := createMiddlewarePATUser(t, "quota-root", "quota-legacy")
+	require.NoError(t, model.DB.Model(user).Update("role", common.RoleRootUser).Error)
+	user.Role = common.RoleRootUser
+	session := &model.UserSession{SID: "quota-session", UserID: user.Id, Version: 1, UserAuthVersion: 1, Status: model.UserSessionStatusActive, RefreshHash: "quota-refresh", LoginMethod: "password", ExpiresAt: time.Now().Unix() + 3600}
+	require.NoError(t, model.CreateUserSession(session))
+	token, _, err := service.IssueAccessToken(service.AuthIdentity{UserID: user.Id, SessionID: session.SID, UserAuthVersion: 1, SessionVersion: 1})
+	require.NoError(t, err)
+	pat, _ := createMiddlewareScopedToken(t, user.Id, 0, "profile:read")
+	engine := gin.New()
+	engine.PUT("/api/private-quota/settings", RootAuth(), PrivateQuotaSessionOnly(), PrivateQuotaWriteGuard(), func(c *gin.Context) { c.Status(http.StatusNoContent) })
+	for _, test := range []struct {
+		name, token, origin, media, header string
+		want                               int
+	}{
+		{"session", token, "http://panel.test", "application/json", "1", 204},
+		{"PAT", pat, "http://panel.test", "application/json", "1", 403},
+		{"model token", "sk-synthetic", "http://panel.test", "application/json", "1", 401},
+		{"cross origin", token, "http://evil.test", "application/json", "1", 403},
+		{"missing origin", token, "", "application/json", "1", 403},
+		{"missing custom header", token, "http://panel.test", "application/json", "", 403},
+		{"form", token, "http://panel.test", "text/plain", "1", 403},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPut, "http://panel.test/api/private-quota/settings", strings.NewReader(`{}`))
+			req.Header.Set("Authorization", "Bearer "+test.token)
+			req.Header.Set("Origin", test.origin)
+			req.Header.Set("Content-Type", test.media)
+			req.Header.Set("X-PongAPI-Request", test.header)
+			response := httptest.NewRecorder()
+			engine.ServeHTTP(response, req)
+			assert.Equal(t, test.want, response.Code, response.Body.String())
+		})
+	}
+	// 普通用户即使拥有有效会话也不能进入私有管理接口。
+	require.NoError(t, model.DB.Model(user).Update("role", common.RoleCommonUser).Error)
+	req := httptest.NewRequest(http.MethodPut, "http://panel.test/api/private-quota/settings", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, req)
+	assert.Equal(t, 403, response.Code)
+}
+
 func issueExpiredDashboardAccessToken(t *testing.T, identity service.AuthIdentity) string {
 	t.Helper()
 	claims := jwt.MapClaims{

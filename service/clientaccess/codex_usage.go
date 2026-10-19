@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/relay/channel/codex"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/service/codexquota"
 )
 
 var ErrCodexUpstreamAuth = errors.New("codex upstream authentication unavailable")
@@ -38,31 +38,17 @@ type CodexUsageData struct {
 	FetchedAt string       `json:"fetched_at"`
 }
 
-type upstreamWindow struct {
-	UsedPercent        *float64 `json:"used_percent"`
-	LimitWindowSeconds int64    `json:"limit_window_seconds"`
-	ResetAt            *int64   `json:"reset_at"`
-}
-
 // NormalizeCodexUsage 只解析白名单字段；未知窗口不猜测为 5 小时或 7 天。
 func NormalizeCodexUsage(body []byte, fetchedAt time.Time) (CodexUsageData, error) {
-	var upstream struct {
-		RateLimit *struct {
-			PrimaryWindow   *upstreamWindow `json:"primary_window"`
-			SecondaryWindow *upstreamWindow `json:"secondary_window"`
-		} `json:"rate_limit"`
-	}
-	if err := common.Unmarshal(body, &upstream); err != nil {
-		return CodexUsageData{}, err
-	}
-	if upstream.RateLimit == nil {
+	windows, err := codexquota.Decode(body)
+	if err != nil {
 		return CodexUsageData{}, ErrCodexUpstreamUnavailable
 	}
 	data := CodexUsageData{
 		Provider: "codex", QuotaKind: "subscription_codex", Status: "fresh",
 		FetchedAt: fetchedAt.UTC().Format(time.RFC3339),
 	}
-	for _, source := range []*upstreamWindow{upstream.RateLimit.PrimaryWindow, upstream.RateLimit.SecondaryWindow} {
+	for _, source := range windows {
 		if source == nil {
 			continue
 		}

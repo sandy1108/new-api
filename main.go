@@ -6,6 +6,8 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"github.com/QuantumNous/new-api/service/privatequota"
+	"github.com/google/uuid"
 	"log"
 	"net/http"
 	"os"
@@ -131,6 +133,9 @@ func main() {
 
 	// Codex credential auto-refresh check every 10 minutes, refresh when expires within 1 day
 	service.StartCodexCredentialAutoRefreshTask()
+	quotaCtx, stopQuota := context.WithCancel(context.Background())
+	defer stopQuota()
+	go (&privatequota.Collector{Store: &privatequota.Store{DB: model.DB}, Owner: "quota-" + uuid.NewString()}).Run(quotaCtx)
 
 	// Subscription quota reset task (daily/weekly/monthly/custom)
 	service.StartSubscriptionQuotaResetTask()
