@@ -969,7 +969,9 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 修正客户端凭据API文档的发布状态和实际导航，补充HTTPS反代部署前提；发布流程补同源配置、真实写入与刷新验收。知识库现有需求/技术设计/实施计划/凭据开发记录同步生产进度，历史阶段记录保留并明确以最新进度为准。
 - 本轮仅文档收尾，不改变已部署镜像业务字节，不重复构建或重启服务。用户授权提交并推送至myfork；仅同步personal/main与当前feature/subscription-quota-ledger，开发分支采用快进对齐，不改写历史、不推origin、不移动历史升级/备份分支、不提交私人Compose及既有无关未跟踪文件。远端成功与否以实际push后核验为准。
 
-## 2026-10-19：官方rc.45开发同步（进行中，未发布）
+## 2026-10-19至20：官方rc.45开发同步（隔离回归通过，未发布生产）
+
+以下按执行顺序保留首轮问题与最终补验，当前结论以本节末尾的10月20日验证为准。
 
 - 用户授权开发同步，沿用Standard；目标仅官方`v1.0.0-rc.45`（`6cf0d90b5ff27f901697dddd61e0c28aba8efefc`），不包含其后main提交。相对官方rc.41共109提交。个人基线`e4eec7208661b626dc57265a23ab880d0552ee9d`；开发分支`upgrade/upstream-main-20261019`，回退分支`backup/pre-sync-20261019`，采用merge不改写共享历史。
 - 唯一显式冲突`controller/codex_usage.go`：保留私有统一OAuth刷新协调器（锁内重读、过期凭据复用、缓存失效），同时接入官方代理/TLS设置和国际化错误。聚合、客户端凭据、订阅额度账本模块及其路由/迁移/采集入口保留。
@@ -979,3 +981,11 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 证据保存在Git外`.backups/new-api/rc45-sync-20261019-01/`。本轮不合入personal/main、不push、不构建正式候选、不切生产；后续按实际结果更新本节。
 - 补齐真实前端dist后，根模块完整`go test -count=1 -timeout=10m ./...`退出0。侧栏自动合并留下旧测试调用已删除的`getNavGroupsForPath`：改用官方`resolveSidebarView(...).getNavGroups(t)`，以稳定URL断言私有凭据入口角色隔离；两用例、类型检查和该文件lint/format通过。Bun直接运行Vitest曾遇到Zod导入异常；在同一锁文件依赖上改用Node 24.20.0执行Vitest，定向测试通过，全量仍进行中。
 - 全量lint报告158 error/66 warning；官方rc.45原样源码、同一依赖复跑得到相同结果，按规则与文件归一化的224项诊断一致，无合并新增诊断；保留上游lint欠账，不擅自批量格式化官方代码。完整前端构建已通过，数据库与测试部署仍待完成。
+- 10月20日最终开发验证：源码合并提交`3148a59f006642d92185e49e9ac179c0eb797ac9`。完整Dockerfile前后端构建退出0；任务跨午夜，最终使用`new-api:dev-20261020-01-g3148a59f0`（不复用旧tag），镜像ID`sha256:1c734d8558b703b4387960ebaabae71e3cbb2b4fead57a6cce80954ba9f20fdb`，linux/arm64，250069442字节。最初临时构建tag已取消，未打正式候选tag。官方VERSION为空，未擅改版本文件，不能用status的空version判断回退。
+- 前端完整Vitest首轮UTC环境为209文件通过、日期范围7用例失败（本地日界线与固定东八区期望相差8小时）；设置`TZ=Asia/Shanghai`定向复验后重新跑全量，210文件、2413用例全部通过，exit 0。不是修改业务时区来迎合测试。最终侧栏测试lint/format无错误。
+- 数据库矩阵：SQLite应用驱动modernc/sqlite v1.40.1（内核常量3.50.4，宿主检查CLI为3.54.0）、PostgreSQL 15.19、MySQL 8.0.46，新库/已发布rc.41私有镜像创建的合成旧库/二次迁移均通过。78个检查覆盖用户/渠道/令牌/私有凭据数据保留、PAT及grant唯一性、私有账本设置保留、旧令牌新增allow_user_quota_query不启用及旧日志保留；PG/MySQL包含独立日志库。未将生产库用于演练，结论不是生产全量数据无损保证。
+- 首轮矩阵MySQL失败是脚本使用socket探针误认初始化临时服务（官方entrypoint以`--skip-networking`启动），随后服务切换连接断开；未进入应用迁移。保留失败报告，改TCP实际SELECT 1后仅补跑MySQL，26项通过；SQLite/PG原先52项通过。所有矩阵容器、临时卷和网络已清理，未改应用代码掩盖失败。
+- 永久测试3317切换前保存测试Compose、pg_dump及data归档并验证可读/SHA；dump SHA-256 `50360a81d900fed965e6ac67892cc5a46b0d3c163e186c8af4c130b9b6a23ad2`。Compose仅测试应用镜像一行变化，使用`--no-build --pull never --no-deps`；后续同镜像再次重建测试应用证明启动幂等，不重启Docker或生产。初次紧跟第二次启动的HTTP探测遇到服务未就绪，等待status成功后复验通过，未归为业务故障。
+- 精确镜像两轮各22项认证态/HTTP回归通过：加密登录、个人资料、凭据列表、管理员和个人汇总、官方PAT目录、账本设置/主体/summary/trend/cycles/events和五个页面HTTP。用户/令牌/渠道/凭据/grant/账本主体行数`1/2/5/5/5/1`、采集开启/10分钟/version4保留；自己的验证会话已注销。未手动请求上游额度、刷新OAuth或调用付费模型；已有采集按原设置正常运行。
+- 边界复核：生产Compose SHA、应用/PG/Redis ID、镜像、启动时间及重启次数与同步前相同；测试PG/Redis未重建，测试应用镜像精确匹配、running、RestartCount=0，启动日志未见FATAL/panic/迁移失败。工具容器和本轮辅助Web镜像已清理；只保留生产及永久测试两套运行环境，旧回滚镜像/备份保留。前端浏览器视觉与真实模型端到端本轮未重测；全量lint上游欠账仍保留。
+- 同步检查单补充无Git冲突时的侧栏接口/测试语义审查、真实dist预构建、显式测试时区、Node运行器复验、lint具体诊断对比及资源限额。知识库同步阶段结果；本次仅开发分支提交，不合personal/main、不push、不切生产，等待用户查看测试环境后决定下一闸门。
