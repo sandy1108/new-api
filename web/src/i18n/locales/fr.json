@@ -1,5 +1,11 @@
 {
   "translation": {
+    "Decision explanation": "Explication de la décision",
+    "Accounting paused since": "Comptabilisation suspendue depuis",
+    "Confirm that a reset occurred. This starts a new local cycle and counts its observed usage; it does not reset upstream quota or add a whole unit.": "Confirme une réinitialisation déjà survenue. Démarre un cycle local et compte son usage observé, sans réinitialiser le quota fournisseur ni ajouter une unité entière.",
+    "Treat this as a time or usage correction, not a reset. Keep the current cycle and count only growth above its previous high-water mark.": "Traite le changement comme une correction d’heure ou d’usage, pas une réinitialisation. Conserve le cycle et ne compte que la hausse au-delà du maximum précédent.",
+    "Use only when the account or quota basis is no longer comparable. Start from a new baseline without counting its initial usage or a reset.": "À utiliser seulement si le compte ou la base du quota n’est plus comparable. Établit une nouvelle référence sans compter l’usage initial ni une réinitialisation.",
+    "Weekly accounting is paused at an unresolved event. Later observations are retained but are not yet included. Review it in History; do not confirm a reset just to increase the total.": "Le cumul hebdomadaire est suspendu sur un événement non résolu. Les observations suivantes sont conservées mais pas encore comptées. Vérifiez l’historique ; ne confirmez pas une réinitialisation pour augmenter le total.",
     "Consumed quota": "Quota consommé",
     "Equivalent cost": "Montant équivalent",
     "Total in selected range": "Total sur la période sélectionnée",

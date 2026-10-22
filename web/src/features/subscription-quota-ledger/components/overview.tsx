@@ -5,6 +5,7 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
 import { LoadingState } from '@/components/loading-state'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   ChartContainer,
@@ -112,6 +113,22 @@ export function QuotaOverview(props: { filters: Filters }) {
           </Card>
         ))}
       </div>
+      {window.pending_events > 0 && (
+        <Alert>
+          <AlertTitle>{t('Pending events')}</AlertTitle>
+          <AlertDescription>
+            <p>
+              {t(
+                'Weekly accounting is paused at an unresolved event. Later observations are retained but are not yet included. Review it in History; do not confirm a reset just to increase the total.'
+              )}
+            </p>
+            <p>
+              {t('Accounting paused since')}:{' '}
+              {ledgerTime(window.pending_since, locale)}
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
       <p className='text-muted-foreground text-xs'>
         {t(
           'Increases count after each successful observation, not only at resets. This page refreshes every minute; collection follows the configured interval.'

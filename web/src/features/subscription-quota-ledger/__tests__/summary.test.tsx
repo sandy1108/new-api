@@ -101,6 +101,8 @@ test('switching subscription loads its own summary and preserves unknown versus 
         seven_day: {
           ...window,
           observed_units: id === 1 ? observedUnits : 0.7,
+          pending_events: 1,
+          pending_since: 1790812800,
         },
         five_hour: { ...window, observed_units: 99, reset_count: 88 },
         gap_seconds: 9900,
@@ -128,6 +130,9 @@ test('switching subscription loads its own summary and preserves unknown versus 
   })
   renderLedger()
   await screen.findByText('0.0034')
+  expect(screen.getByRole('alert')).toHaveTextContent(
+    'Weekly accounting is paused at an unresolved event. Later observations are retained but are not yet included. Review it in History; do not confirm a reset just to increase the total.'
+  )
   expect(
     screen.queryByRole('combobox', { name: 'Quota window' })
   ).not.toBeInTheDocument()

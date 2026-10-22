@@ -204,3 +204,97 @@ func TestBuildLedgerIdlePlanDecisionSurvivesReplay(t *testing.T) {
 		t.Fatalf("explicit decision discarded: %+v", ledger)
 	}
 }
+
+// 周窗口也会在0%空闲期间返回“读取时刻+整周”，不能把滑动截止当成新重置。
+func TestBuildLedgerWeeklyIdleAfterResetRecoversMonthlyUsage(t *testing.T) {
+	const at int64 = 1792416252
+	samples := []Sample{
+		quotaSample(1, at, 6400, at+400000),
+		quotaSample(2, at+600, 8300, at+400000),
+		quotaSample(3, at+1200, 0, at+606000),
+		quotaSample(4, at+1800, 0, at+606600),
+		quotaSample(5, at+2400, 0, at+607200),
+		quotaSample(6, at+3000, 100, at+607600),
+		quotaSample(7, at+3600, 5700, at+607600),
+	}
+	for _, tc := range []struct {
+		name      string
+		decisions []Decision
+		kind      EventKind
+	}{
+		{name: "连续空闲证据自动确认一次提前重置", kind: ResetEarly},
+		{name: "保留已有人工确认", kind: ResetManual, decisions: []Decision{
+			{ID: 1, EventKey: "604800/2/3", Kind: ConfirmReset, Reason: "已确认重置"},
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ledger, err := BuildLedger(samples, tc.decisions)
+			require.NoError(t, err)
+			require.Len(t, ledger.Events, 1)
+			assert.Equal(t, tc.kind, ledger.Events[0].Kind)
+			assert.Equal(t, EventAccepted, ledger.Events[0].Status)
+			summary, err := SummarizeMonth(ledger, "2026-10", time.FixedZone("Asia/Shanghai", 8*3600))
+			require.NoError(t, err)
+			// 接入前64%不计入；接入后19% + 重置后57% = 0.76周份。
+			assert.EqualValues(t, 7600, summary.SevenDay.ObservedBasisPoints)
+			assert.Equal(t, 1, summary.SevenDay.ResetCount)
+			assert.Zero(t, summary.SevenDay.PendingEvents)
+		})
+	}
+}
+
+func TestBuildLedgerWeeklyIdleDoesNotInventResetsAndKeepsDecision(t *testing.T) {
+	const at int64 = 1800000000
+	samples := []Sample{
+		quotaSample(1, at, 0, at+604800),
+		quotaSample(2, at+600, 0, at+605400),
+		quotaSample(3, at+1200, 100, at+605800),
+		quotaSample(4, at+1800, 300, at+605800),
+	}
+	ledger, err := BuildLedger(samples, nil)
+	require.NoError(t, err)
+	assert.Empty(t, ledger.Events)
+	require.Len(t, ledger.Cycles, 1)
+	assert.EqualValues(t, 300, ledger.Cycles[0].ObservedBasisPoints)
+
+	corrected, err := BuildLedger(samples, []Decision{{ID: 1, EventKey: "604800/1/2", Kind: PlanCorrection, Reason: "保留旧规则下的人工决定"}})
+	require.NoError(t, err)
+	require.Len(t, corrected.Events, 1)
+	assert.Equal(t, EventCorrected, corrected.Events[0].Status)
+	assert.EqualValues(t, 300, corrected.Cycles[0].ObservedBasisPoints)
+}
+
+func TestBuildLedgerWeeklyIdleKeepsUncertainResetPending(t *testing.T) {
+	const at int64 = 1800000000
+	for _, name := range []string{"非零回落", "不是完整周窗口", "截止前移", "重置前采样缺口", "重置后采样缺口", "中间无效采样"} {
+		t.Run(name, func(t *testing.T) {
+			samples := []Sample{
+				quotaSample(1, at, 8300, at+400000),
+				quotaSample(2, at+600, 0, at+605400),
+				quotaSample(3, at+1200, 0, at+606000),
+			}
+			switch name {
+			case "非零回落":
+				*samples[1].UsedBasisPoints, *samples[2].UsedBasisPoints = 100, 100
+			case "不是完整周窗口":
+				samples[1].ResetAt, samples[2].ResetAt = at+600000, at+600600
+			case "截止前移":
+				samples[2].ResetAt = at + 605000
+			case "重置前采样缺口":
+				samples[1].FetchedAt, samples[1].ResetAt = at+3600, at+608400
+				samples[2].FetchedAt, samples[2].ResetAt = at+4200, at+609000
+			case "重置后采样缺口":
+				samples[2].FetchedAt, samples[2].ResetAt = at+3600, at+608400
+			case "中间无效采样":
+				bad := quotaSample(4, at+900, 0, at+605700)
+				bad.UsedBasisPoints = nil
+				samples = append(samples, bad)
+			}
+			ledger, err := BuildLedger(samples, nil)
+			require.NoError(t, err)
+			require.Len(t, ledger.Events, 1)
+			assert.Equal(t, EventPending, ledger.Events[0].Status)
+			require.Len(t, ledger.Cycles, 1)
+		})
+	}
+}

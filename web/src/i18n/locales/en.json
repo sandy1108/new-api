@@ -1,5 +1,11 @@
 {
   "translation": {
+    "Decision explanation": "Decision explanation",
+    "Accounting paused since": "Accounting paused since",
+    "Confirm that a reset occurred. This starts a new local cycle and counts its observed usage; it does not reset upstream quota or add a whole unit.": "Confirm that a reset occurred. This starts a new local cycle and counts its observed usage; it does not reset upstream quota or add a whole unit.",
+    "Treat this as a time or usage correction, not a reset. Keep the current cycle and count only growth above its previous high-water mark.": "Treat this as a time or usage correction, not a reset. Keep the current cycle and count only growth above its previous high-water mark.",
+    "Use only when the account or quota basis is no longer comparable. Start from a new baseline without counting its initial usage or a reset.": "Use only when the account or quota basis is no longer comparable. Start from a new baseline without counting its initial usage or a reset.",
+    "Weekly accounting is paused at an unresolved event. Later observations are retained but are not yet included. Review it in History; do not confirm a reset just to increase the total.": "Weekly accounting is paused at an unresolved event. Later observations are retained but are not yet included. Review it in History; do not confirm a reset just to increase the total.",
     "Consumed quota": "Consumed quota",
     "Equivalent cost": "Equivalent cost",
     "Total in selected range": "Total in selected range",

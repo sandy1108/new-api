@@ -1,5 +1,11 @@
 {
   "translation": {
+    "Decision explanation": "Giải thích cách xử lý",
+    "Accounting paused since": "Tạm dừng thống kê từ",
+    "Confirm that a reset occurred. This starts a new local cycle and counts its observed usage; it does not reset upstream quota or add a whole unit.": "Xác nhận đã xảy ra đặt lại. Bắt đầu chu kỳ cục bộ mới và tính mức dùng quan sát được; không đặt lại hạn mức phía nhà cung cấp hay cộng nguyên một đơn vị.",
+    "Treat this as a time or usage correction, not a reset. Keep the current cycle and count only growth above its previous high-water mark.": "Xem đây là hiệu chỉnh thời gian hoặc mức dùng, không phải đặt lại. Giữ chu kỳ hiện tại và chỉ tính phần tăng vượt mức cao nhất trước đó.",
+    "Use only when the account or quota basis is no longer comparable. Start from a new baseline without counting its initial usage or a reset.": "Chỉ dùng khi tài khoản hoặc cơ sở hạn mức thay đổi và không thể so sánh. Tạo mốc mới, không tính mức dùng ban đầu hay thêm lần đặt lại.",
+    "Weekly accounting is paused at an unresolved event. Later observations are retained but are not yet included. Review it in History; do not confirm a reset just to increase the total.": "Thống kê mức dùng tuần đang dừng tại sự kiện chưa xử lý. Các mẫu sau vẫn được lưu nhưng chưa tính vào tổng. Hãy kiểm tra lịch sử; không xác nhận đặt lại chỉ để tăng số tổng.",
     "Consumed quota": "Hạn mức đã dùng",
     "Equivalent cost": "Chi phí quy đổi",
     "Total in selected range": "Tổng trong khoảng đã chọn",

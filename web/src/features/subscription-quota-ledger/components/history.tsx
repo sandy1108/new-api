@@ -241,6 +241,18 @@ function EventDecision(props: {
     defaultValues: { decision: 'confirm_reset', reason: '' },
   })
   const decision = form.watch('decision')
+  let decisionExplanation = t(
+    'Confirm that a reset occurred. This starts a new local cycle and counts its observed usage; it does not reset upstream quota or add a whole unit.'
+  )
+  if (decision === 'plan_correction') {
+    decisionExplanation = t(
+      'Treat this as a time or usage correction, not a reset. Keep the current cycle and count only growth above its previous high-water mark.'
+    )
+  } else if (decision === 'segment_change') {
+    decisionExplanation = t(
+      'Use only when the account or quota basis is no longer comparable. Start from a new baseline without counting its initial usage or a reset.'
+    )
+  }
   const preview = props.event.previews[decision]
   const window = preview?.seven_day
   const mutation = useMutation({
@@ -307,6 +319,13 @@ function EventDecision(props: {
               </FormItem>
             )}
           />
+          <p
+            role='note'
+            aria-label={t('Decision explanation')}
+            className='text-muted-foreground text-sm'
+          >
+            {decisionExplanation}
+          </p>
           <p className='text-sm' role='status'>
             {t('Preview after decision')}: {t('Observed weekly units')}{' '}
             {formatWeeklyUnits(window?.observed_units, locale)} ·{' '}

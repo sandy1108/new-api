@@ -1,5 +1,11 @@
 {
   "translation": {
+    "Decision explanation": "Пояснение к решению",
+    "Accounting paused since": "Учёт приостановлен с",
+    "Confirm that a reset occurred. This starts a new local cycle and counts its observed usage; it does not reset upstream quota or add a whole unit.": "Подтвердить уже произошедший сброс. Начинается новый локальный цикл с учётом наблюдаемого расхода; квота провайдера не сбрасывается и целая единица не добавляется.",
+    "Treat this as a time or usage correction, not a reset. Keep the current cycle and count only growth above its previous high-water mark.": "Считать изменением времени или корректировкой расхода, а не сбросом. Сохранить цикл и учитывать только рост выше предыдущего максимума.",
+    "Use only when the account or quota basis is no longer comparable. Start from a new baseline without counting its initial usage or a reset.": "Использовать только при смене аккаунта или несопоставимой базе квоты. Создать новую базовую точку без учёта начального расхода или сброса.",
+    "Weekly accounting is paused at an unresolved event. Later observations are retained but are not yet included. Review it in History; do not confirm a reset just to increase the total.": "Недельный учёт приостановлен из-за нерешённого события. Последующие наблюдения сохраняются, но пока не учитываются. Проверьте историю; не подтверждайте сброс лишь ради увеличения итога.",
     "Consumed quota": "Израсходованная квота",
     "Equivalent cost": "Эквивалентная стоимость",
     "Total in selected range": "Всего за выбранный период",

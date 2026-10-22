@@ -1,5 +1,11 @@
 {
   "translation": {
+    "Decision explanation": "處理方式說明",
+    "Accounting paused since": "暫停記帳起點",
+    "Confirm that a reset occurred. This starts a new local cycle and counts its observed usage; it does not reset upstream quota or add a whole unit.": "確認確實發生過重置：從此開始新一輪，累計新一輪觀測到的用量；不會重置上游額度，也不會直接增加一整份。",
+    "Treat this as a time or usage correction, not a reset. Keep the current cycle and count only growth above its previous high-water mark.": "視為時間或用量修正，而非重置：延續目前輪次，只累計超過先前最高已用比例的增長，不重複計算回落後恢復的部分。",
+    "Use only when the account or quota basis is no longer comparable. Start from a new baseline without counting its initial usage or a reset.": "僅在帳號或額度口徑發生變化、前後無法比較時使用：以目前讀數重新建立基線，不計入初始用量，也不增加重置次數。",
+    "Weekly accounting is paused at an unresolved event. Later observations are retained but are not yet included. Review it in History; do not confirm a reset just to increase the total.": "周用量累計因待確認事件暫停；後續採樣仍持續保存，但暫未計入累計值。請在「輪次與事件」中核對，不要只為提高累計數字而確認重置。",
     "Consumed quota": "消耗額度",
     "Equivalent cost": "等價金額",
     "Total in selected range": "所選時間範圍內累計",

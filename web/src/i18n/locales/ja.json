@@ -1,5 +1,11 @@
 {
   "translation": {
+    "Decision explanation": "処理方法の説明",
+    "Accounting paused since": "集計の停止開始時刻",
+    "Confirm that a reset occurred. This starts a new local cycle and counts its observed usage; it does not reset upstream quota or add a whole unit.": "実際にリセットが発生したことを確認します。新しいローカル周期の観測使用量を集計しますが、上流の割当はリセットせず、1単位を加算する操作でもありません。",
+    "Treat this as a time or usage correction, not a reset. Keep the current cycle and count only growth above its previous high-water mark.": "リセットではなく時刻または使用量の補正として扱います。現在の周期を維持し、過去の最大使用率を超えた増加分だけを集計します。",
+    "Use only when the account or quota basis is no longer comparable. Start from a new baseline without counting its initial usage or a reset.": "アカウントや割当の基準が変わり、前後を比較できない場合にのみ使います。現在値を新しい基準とし、初期使用量やリセット回数には加算しません。",
+    "Weekly accounting is paused at an unresolved event. Later observations are retained but are not yet included. Review it in History; do not confirm a reset just to increase the total.": "未解決のイベントにより週使用量の集計が停止しています。以降の観測値は保存されていますが未集計です。履歴で確認し、合計値を増やすためだけにリセットを確定しないでください。",
     "Consumed quota": "消費クォータ",
     "Equivalent cost": "換算金額",
     "Total in selected range": "選択期間の合計",

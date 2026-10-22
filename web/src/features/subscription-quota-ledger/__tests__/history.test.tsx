@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 
 import { api } from '@/lib/api'
@@ -19,6 +20,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 test('decision requires reason and submits the event and subject versions from preview', async () => {
+  const user = userEvent.setup()
   client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
@@ -46,6 +48,8 @@ test('decision requires reason and submits the event and subject versions from p
                 new_reset_at: 4,
                 previews: {
                   confirm_reset: { seven_day: window, five_hour: window },
+                  plan_correction: { seven_day: window, five_hour: window },
+                  segment_change: { seven_day: window, five_hour: window },
                 },
                 decisions: [],
               },
@@ -69,6 +73,30 @@ test('decision requires reason and submits the event and subject versions from p
     await screen.findByRole('button', { name: 'Review event #17' })
   )
   await screen.findByRole('alertdialog')
+  expect(
+    screen.getByRole('note', { name: 'Decision explanation' })
+  ).toHaveTextContent(
+    'Confirm that a reset occurred. This starts a new local cycle and counts its observed usage; it does not reset upstream quota or add a whole unit.'
+  )
+  await user.click(screen.getByRole('combobox', { name: 'Decision' }))
+  await user.click(screen.getByRole('option', { name: 'Plan correction' }))
+  expect(
+    screen.getByRole('note', { name: 'Decision explanation' })
+  ).toHaveTextContent(
+    'Treat this as a time or usage correction, not a reset. Keep the current cycle and count only growth above its previous high-water mark.'
+  )
+  await user.click(screen.getByRole('combobox', { name: 'Decision' }))
+  await user.click(screen.getByRole('option', { name: 'Start new segment' }))
+  expect(
+    screen.getByRole('note', { name: 'Decision explanation' })
+  ).toHaveTextContent(
+    'Use only when the account or quota basis is no longer comparable. Start from a new baseline without counting its initial usage or a reset.'
+  )
+  expect(api.post).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('combobox', { name: 'Decision' }))
+  await user.click(
+    screen.getByRole('option', { name: 'Manual reset decision' })
+  )
   fireEvent.click(screen.getByRole('button', { name: 'Save decision' }))
   await screen.findByText('Too small: expected string to have >=1 characters')
   expect(api.post).not.toHaveBeenCalled()

@@ -119,8 +119,9 @@ func BuildLedger(samples []Sample, decisions []Decision) (Ledger, error) {
 		}
 		if state.pending != nil {
 			pending := state.pending
-			// 5小时空闲窗口的截止会随查询滑动；连续空闲证据仍可确认前一轮重置。
-			idleContinuation := fiveHourIdle(pending.first) && followsFiveHourIdle(state.last, sample)
+			// 两种额度窗口在0%空闲时都可能返回“采样时刻+完整窗口”的滑动截止。
+			// 只有完整空闲窗口的连续证据才能延续确认，不能泛化为任意周计划变化。
+			idleContinuation := fullWindowIdle(pending.first) && followsIdleWindow(state.last, sample)
 			if (!sameResetPlan(sample.ResetAt, pending.first.ResetAt) && !idleContinuation) ||
 				*pending.first.UsedBasisPoints-*sample.UsedBasisPoints >= significantDrop {
 				pending.ambiguous = true
@@ -139,7 +140,7 @@ func BuildLedger(samples []Sample, decisions []Decision) (Ledger, error) {
 		// 空闲截止后移不是领取新额度；开始使用后截止固定，也仍属于同一轮。
 		// 显式人工决定优先，不能因规则修正而丢失已有决定链。
 		_, hasDecision := effective[boundaryEvent(state.last, sample, ChangePlan, EventPending).Key]
-		if !hasGap && !interrupted && !hasDecision && followsFiveHourIdle(state.last, sample) {
+		if !hasGap && !interrupted && !hasDecision && followsIdleWindow(state.last, sample) {
 			ledger.advanceCycle(state.cycleIndex, sample)
 			state.last, state.dropHigh, state.lowStreak = sample, max(state.dropHigh, *sample.UsedBasisPoints), 0
 			continue
@@ -246,14 +247,15 @@ func sameResetPlan(a, b int64) bool {
 	return a >= b-resetTolerance && a <= b+resetTolerance
 }
 
-// fiveHourIdle仅识别已记录的0%+完整5小时滑动截止，不推断周额度或非零窗口。
-func fiveHourIdle(sample Sample) bool {
-	return sample.WindowSeconds == FiveHourSeconds && sample.UsedBasisPoints != nil &&
-		*sample.UsedBasisPoints == 0 && sameResetPlan(sample.ResetAt, sample.FetchedAt+FiveHourSeconds)
+// fullWindowIdle仅识别0%且截止等于采样时刻加完整窗口的记录，不推断非零或短窗口校正。
+func fullWindowIdle(sample Sample) bool {
+	return (sample.WindowSeconds == FiveHourSeconds || sample.WindowSeconds == SevenDaySeconds) &&
+		sample.UsedBasisPoints != nil && *sample.UsedBasisPoints == 0 &&
+		sameResetPlan(sample.ResetAt, sample.FetchedAt+sample.WindowSeconds)
 }
 
-func followsFiveHourIdle(before, after Sample) bool {
-	return fiveHourIdle(before) && after.WindowSeconds == FiveHourSeconds &&
+func followsIdleWindow(before, after Sample) bool {
+	return fullWindowIdle(before) && after.WindowSeconds == before.WindowSeconds &&
 		after.FetchedAt < before.ResetAt-resetTolerance && after.ResetAt >= before.ResetAt-resetTolerance
 }
 
