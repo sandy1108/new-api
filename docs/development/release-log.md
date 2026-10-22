@@ -1079,3 +1079,13 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 继续Standard、单Agent；先复核差异和新鲜测试，再按功能拆分提交及公共翻译。发现生产源码仍有上一轮rc.45上线/页面验收未提交日志，单独保留提交，不丢弃、不覆盖。私人生产Compose和既有无关未跟踪文件不提交，不推送远端。
 - 正式候选提升已验收的镜像04，不重新编译；用最终源码提交逐文件核对原构建manifest与上下文，保持精确镜像ID。生产切换仅交豆包在停机二次确认后执行，本阶段不停止/重建生产或测试应用、不修改生产Compose。
 - 本轮无表/SQL/迁移/ORM/依赖变更，不重复三库迁移矩阵；启动仍会运行既有AutoMigrate，不把“无新增迁移”描述为不执行迁移。周摘要由原始样本重放，持久化事件投影待下一次成功自动采样更新，原始快照和人工决定须保持。旧镜像可回滚，但旧计算Bug会随回滚恢复，不通过恢复数据库修正计算结果。
+
+### 2026-10-22：分批提交、同镜像正式提升与生产交接就绪（pending）
+
+- 三个功能批次：`1656281d8`用量页消耗额度/双币种及界面；`8a96486b8`周空闲重置累计冻结与人工事件说明；`457bb66fe39f2369562b373e7232006eb15fc44e`账本/配置入口拆分。文档单独提交，未混入私人Compose、历史未跟踪计划、node_modules或锁文件。生产源码原未提交rc45验收日志单独提交`6949c58d0`；开发merge时仅release-log追加段落冲突，保留双方后为`402dbab85`，非docs树与最终功能提交完全相同。
+- 先创建`backup/pre-release-20261022-usage-ledger`保留`6949c58d0`，再在生产源码worktree将`personal/main`快进到上述合并结果；没有rebase/force push/push、删除分支或worktree。生产源码更新不等同运行容器更新，生产应用和私人Compose保持不动。
+- 用户验收的镜像04提升正式标签`new-api:v1.0.0-rc.45-20261022-01-g457bb66fe`，ID仍`sha256:8df0e2b23f6856e35f5225e323e69ef8a1b81aad7bebaf19f20e6deb20eee983`，linux/arm64、250134978字节。构建于2026-10-22 UTC 03:31，原完整Dockerfile构建成功；本阶段不重编。2729个非docs文件与原源码manifest/构建上下文逐个匹配最终提交，后续集成仅docs差异；没有OCI revision标签，不伪造来源证明。
+- 本轮新鲜前端全量211文件2442项测试、全前端tsgo、41文件lint零错误零警告、41文件只读定向格式检查均退出0；Go `service/privatequota`和`controller`测试退出0。首轮因工具容器缺官方JSON夹具挂载导致1文件加载失败（其他210文件2364项通过），失败日志保留；只读补挂pkg后，原失败文件78项及全量重新通过，未改业务源码。锁定依赖配合真实Node与Asia/Shanghai时区，工具容器限1800MiB/两核串行且退出后自动删除。格式工具只校验临时副本，不写回源码；未宣称全项目lint或三库矩阵重跑。
+- 发布前再次25项认证态/API/HTTP与36项保留性检查通过，验证自己的会话已注销。永久测试原用户/令牌/渠道/凭据/grant/主体`1/2/5/5/5/1`、开启采集/10分钟/version4、旧快照及人工决定保留。生产仍`new-api:v1.0.0-rc.45-20261020-01-g3148a59f0`，healthy/restart0、未OOM；两套PG/Redis、测试应用及生产Compose不变。无手动上游额度/OAuth刷新/付费模型请求。
+- Git外交接包`new-api-pre-switch-20261022-usage-ledger`的在线准备备份`evidence/prepare-WkJZVJ/`完成：PG dump6802599字节，SHA-256 `31fcbd2cb35ad9ee0642b073859254632a281273d8fb903446ca016b14b1c984`；另含schema、Compose、受保护inspect、data/logs、业务计数和账本配置/旧快照/决定摘要，共10份文件的大小/SHA及dump目录/tar可读检查通过。不是跨资源事务一致快照，执行切换前必须再做新鲜备份。
+- HANDOFF/EXECUTION_FEEDBACK/handoff.json三件套及来源/备份/验收脚本已齐，状态pending；豆包必须先获用户二次停机确认，仅改生产镜像行并以`--no-build --pull never --no-deps`重建new-api，保留PG/Redis/永久测试。回滚精确镜像`new-api:v1.0.0-rc.45-20261020-01-g3148a59f0`保留，不自动恢复数据库。生产HTTPS页面、真实自然流量与下一次成功自动采样后的事件投影待切换后验收，不提前声称通过。知识库现有四份笔记同步；本轮未生产发布、未推送远端。
