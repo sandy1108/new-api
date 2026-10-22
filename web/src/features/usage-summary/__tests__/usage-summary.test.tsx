@@ -14,8 +14,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, test, vi } from 'vitest'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import i18next from 'i18next'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+
+import { useSystemConfigStore } from '@/stores/system-config-store'
 
 import { UsageSummaryCards } from '../components/summary-cards'
 import { TokenDetail } from '../components/token-detail'
@@ -31,6 +35,21 @@ vi.mock('../hooks/use-usage-summary', () => ({
 }))
 
 const mockedUseUsageSummary = vi.mocked(useUsageSummary)
+const initialConfig = useSystemConfigStore.getState().config
+beforeEach(() => {
+  useSystemConfigStore.getState().setConfig({
+    currency: {
+      ...initialConfig.currency,
+      quotaPerUnit: 500_000,
+      usdExchangeRate: 7,
+    },
+  })
+})
+afterEach(async () => {
+  useSystemConfigStore.setState({ config: initialConfig })
+  await i18next.changeLanguage('en')
+  localStorage.clear()
+})
 
 function makeToken(
   overrides: Partial<UsageTokenBucket> = {}
@@ -73,7 +92,72 @@ function makeToken(
 }
 
 describe('usage summary hierarchy', () => {
-  test('renders the real daily input and output trend points', () => {
+  test('updates equivalent costs when site conversion changes without confusing quota with Token counts', () => {
+    render(
+      <UsageSummaryCards
+        totals={{
+          requests: 2,
+          inputTokens: 30,
+          outputTokens: 20,
+          totalTokens: 50,
+          quota: 1_000_000,
+        }}
+      />
+    )
+    const cost = within(screen.getByRole('group', { name: 'Equivalent cost' }))
+    const quota = within(screen.getByRole('group', { name: 'Consumed quota' }))
+    expect(cost.getByText('CN¥14.00')).toBeInTheDocument()
+    expect(cost.getByText(/\$2.00/)).toBeInTheDocument()
+    expect(quota.getByText('1M')).toHaveAttribute('title', '1,000,000')
+    act(() =>
+      useSystemConfigStore.getState().setConfig({
+        currency: {
+          ...initialConfig.currency,
+          quotaPerUnit: 250_000,
+          usdExchangeRate: 8,
+          quotaDisplayType: 'TOKENS',
+        },
+      })
+    )
+    expect(cost.getByText('CN¥32.00')).toBeInTheDocument()
+    expect(cost.getByText(/\$4.00/)).toBeInTheDocument()
+    act(() =>
+      useSystemConfigStore
+        .getState()
+        .setConfig({ currency: { ...initialConfig.currency, quotaPerUnit: 0 } })
+    )
+    expect(cost.getAllByText(/Unavailable/)).toHaveLength(2)
+    expect(quota.getByText('1M')).toBeInTheDocument()
+  })
+
+  test('updates compact numbers and currency when the interface language changes', async () => {
+    render(
+      <UsageSummaryCards
+        totals={{
+          requests: 2,
+          inputTokens: 100_000_000,
+          outputTokens: 23_456_789,
+          totalTokens: 123_456_789,
+          quota: 500_000,
+        }}
+      />
+    )
+    const tokens = within(screen.getByRole('group', { name: 'Total Tokens' }))
+    expect(tokens.getByText('123.5M')).toBeInTheDocument()
+    await act(() => i18next.changeLanguage('zhCN'))
+    expect(tokens.getByText('1.2亿')).toHaveAttribute('title', '123,456,789')
+    expect(
+      within(screen.getByRole('group', { name: 'Equivalent cost' })).getByText(
+        '¥7.00'
+      )
+    ).toBeInTheDocument()
+    await act(() => i18next.changeLanguage('zhTW'))
+    expect(tokens.getByText('1.2億')).toBeInTheDocument()
+    await act(() => i18next.changeLanguage('fr'))
+    expect(tokens.queryByText('1.2億')).toBeNull()
+  })
+
+  test('renders daily total token bars derived from the server input and output', () => {
     render(
       <UsageTrend
         points={[
@@ -90,13 +174,9 @@ describe('usage summary hierarchy', () => {
     )
 
     expect(screen.getByTestId('usage-summary-trend')).toBeInTheDocument()
-    expect(screen.getByTestId('usage-trend-input-1756560000')).toHaveAttribute(
+    expect(screen.getByTestId('usage-trend-total-1756560000')).toHaveAttribute(
       'title',
-      '1,000'
-    )
-    expect(screen.getByTestId('usage-trend-output-1756560000')).toHaveAttribute(
-      'title',
-      '500'
+      '1,500'
     )
   })
 
@@ -113,7 +193,7 @@ describe('usage summary hierarchy', () => {
 
     expect(screen.getByTestId('usage-summary-distribution')).toBeInTheDocument()
     expect(screen.getByText('Backup token')).toBeInTheDocument()
-    expect(screen.getByText('25%')).toBeInTheDocument()
+    expect(screen.getByText(/25%/)).toBeInTheDocument()
     expect(screen.queryByText('Official')).toBeNull()
   })
 
@@ -130,11 +210,15 @@ describe('usage summary hierarchy', () => {
       />
     )
 
-    expect(screen.getByText('1.23亿')).toHaveAttribute('title', '123,456,789')
-    expect(screen.getByText('3,684.2万')).toHaveAttribute('title', '36,842,000')
+    expect(screen.getByText('160.3M')).toHaveAttribute('title', '160,298,789')
+    expect(screen.getByText(/Input: 123.5M \/ Output: 36.8M/)).toHaveAttribute(
+      'title',
+      'Input: 123,456,789 / Output: 36,842,000'
+    )
   })
 
-  test('marks the selected token and emits click and keyboard selection changes', () => {
+  test('marks the selected token and supports click and keyboard activation', async () => {
+    const user = userEvent.setup()
     const first = makeToken()
     const second = makeToken({
       id: 11,
@@ -153,11 +237,12 @@ describe('usage summary hierarchy', () => {
 
     const firstRow = screen.getByRole('button', { name: /Codex token/ })
     const secondRow = screen.getByRole('button', { name: /Backup token/ })
-    expect(firstRow).toHaveAttribute('aria-selected', 'true')
-    expect(secondRow).toHaveAttribute('aria-selected', 'false')
+    expect(firstRow).toHaveAttribute('aria-pressed', 'true')
+    expect(secondRow).toHaveAttribute('aria-pressed', 'false')
 
     fireEvent.click(secondRow)
-    fireEvent.keyDown(secondRow, { key: 'Enter' })
+    secondRow.focus()
+    await user.keyboard('{Enter}')
 
     expect(onSelect).toHaveBeenNthCalledWith(1, second.key)
     expect(onSelect).toHaveBeenNthCalledWith(2, second.key)
@@ -168,8 +253,12 @@ describe('usage summary hierarchy', () => {
     const { rerender } = render(<TokenDetail token={token} />)
 
     expect(screen.getByText('Official')).toBeInTheDocument()
-    expect(screen.getByText('gpt-5.6')).toBeInTheDocument()
-    expect(screen.getAllByText('150').length).toBeGreaterThanOrEqual(2)
+    expect(
+      within(
+        screen.getByRole('table', { name: 'Models in Channel' })
+      ).getByText('gpt-5.6')
+    ).toBeInTheDocument()
+    expect(screen.getByText('150')).toHaveAttribute('title', '150')
 
     rerender(<TokenDetail token={makeToken({ channels: [] })} />)
     expect(
@@ -209,8 +298,11 @@ describe('usage summary hierarchy', () => {
     )
 
     expect(screen.getByText('Official')).toBeInTheDocument()
-    expect(screen.getByText('gpt-5.6')).toBeInTheDocument()
-    expect(screen.queryByText('按模型')).toBeNull()
+    expect(
+      within(
+        screen.getByRole('table', { name: 'Models in Channel' })
+      ).getByText('gpt-5.6')
+    ).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /Backup/ }))
     expect(onChannelSelect).toHaveBeenCalledWith('[3,"Backup"]')
@@ -222,8 +314,16 @@ describe('usage summary hierarchy', () => {
         onChannelSelect={onChannelSelect}
       />
     )
-    expect(screen.getByText('claude-sonnet')).toBeInTheDocument()
-    expect(screen.queryByText('gpt-5.6')).toBeNull()
+    const channelTable = within(
+      screen.getByRole('table', { name: 'Models in Channel' })
+    )
+    expect(channelTable.getByText('claude-sonnet')).toBeInTheDocument()
+    expect(channelTable.queryByText('gpt-5.6')).toBeNull()
+    expect(
+      within(
+        screen.getByRole('region', { name: 'Models across channels' })
+      ).getByText('gpt-5.6')
+    ).toBeInTheDocument()
   })
 })
 
@@ -313,12 +413,20 @@ describe('usage summary page states', () => {
     mockSummaryQuery({ data: summaryDataWithMultipleTokens })
     render(<UsageSummary />)
 
-    expect(screen.getByText('gpt-5.6')).toBeInTheDocument()
+    expect(
+      within(
+        screen.getByRole('table', { name: 'Models in Channel' })
+      ).getByText('gpt-5.6')
+    ).toBeInTheDocument()
     const backupRow = screen.getByRole('row', { name: /Backup token/ })
 
     fireEvent.click(backupRow)
 
-    expect(screen.getByText('claude-sonnet')).toBeInTheDocument()
+    expect(
+      within(
+        screen.getByRole('table', { name: 'Models in Channel' })
+      ).getByText('claude-sonnet')
+    ).toBeInTheDocument()
     expect(screen.queryByText('gpt-5.6')).toBeNull()
   })
 

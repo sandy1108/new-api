@@ -14,29 +14,13 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-import { Activity } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { IconBadge } from '@/components/ui/icon-badge'
 
-import { formatUsageCompactNumber, formatUsageNumber } from '../lib/format'
+import { useUsageFormat } from '../hooks/use-usage-format'
 import type { UsageSummaryTrendPoint } from '../types'
-
-const trendDateFormatter = new Intl.DateTimeFormat(undefined, {
-  month: 'short',
-  day: 'numeric',
-})
-
-function toFiniteValue(value: number): number {
-  return Number.isFinite(value) ? Math.max(0, value) : 0
-}
-
-function formatTrendDate(timestamp: number): string {
-  const date = new Date(timestamp * 1000)
-  return Number.isNaN(date.getTime()) ? '—' : trendDateFormatter.format(date)
-}
 
 export interface UsageTrendProps {
   points: UsageSummaryTrendPoint[]
@@ -44,148 +28,92 @@ export interface UsageTrendProps {
 
 export function UsageTrend(props: UsageTrendProps) {
   const { t } = useTranslation()
+  const format = useUsageFormat()
   const chart = useMemo(() => {
-    const points = props.points.map((point) => ({
-      ...point,
-      input: toFiniteValue(point.input_tokens),
-      output: toFiniteValue(point.output_tokens),
-    }))
-    const maxValue = Math.max(
-      1,
-      ...points.flatMap((point) => [point.input, point.output])
-    )
-    const peakDailyTotal = Math.max(
-      0,
-      ...points.map((point) => point.input + point.output)
-    )
-
-    return { points, maxValue, peakDailyTotal }
+    const points = props.points.map((point) => {
+      const input = Number.isFinite(point.input_tokens)
+        ? Math.max(0, point.input_tokens)
+        : 0
+      const output = Number.isFinite(point.output_tokens)
+        ? Math.max(0, point.output_tokens)
+        : 0
+      return { ...point, total: input + output }
+    })
+    return { points, max: Math.max(1, ...points.map((point) => point.total)) }
   }, [props.points])
-
+  const dateFormat = new Intl.DateTimeFormat(format.locale, {
+    month: 'numeric',
+    day: 'numeric',
+  })
   return (
     <Card
       size='sm'
-      className='h-full overflow-hidden'
+      className='h-full min-w-0'
       data-testid='usage-summary-trend'
     >
-      <CardHeader className='border-b p-3 sm:p-4'>
-        <div className='flex flex-wrap items-start justify-between gap-3'>
-          <div className='flex min-w-0 items-center gap-2.5'>
-            <IconBadge tone='chart-1' size='sm'>
-              <Activity />
-            </IconBadge>
-            <div className='min-w-0'>
-              <CardTitle className='truncate text-sm sm:text-base'>
-                {t('Usage Trend')}
-              </CardTitle>
-              <p className='text-muted-foreground mt-1 text-xs'>
-                {t('Daily input and output tokens')}
-              </p>
-            </div>
-          </div>
-          <div className='flex flex-wrap items-center gap-3 text-xs'>
-            <span className='text-muted-foreground inline-flex items-center gap-1.5'>
-              <span className='bg-chart-1 size-1.5 rounded-sm' />
-              {t('Input Tokens')}
-            </span>
-            <span className='text-muted-foreground inline-flex items-center gap-1.5'>
-              <span className='bg-chart-2 size-1.5 rounded-sm' />
-              {t('Output Tokens')}
-            </span>
-          </div>
-        </div>
+      <CardHeader className='flex flex-wrap items-center justify-between gap-2'>
+        <CardTitle>
+          <h3>{t('Usage Trend')}</h3>
+        </CardTitle>
+        <span className='text-muted-foreground text-xs'>
+          {t('Daily total tokens')}
+        </span>
       </CardHeader>
-      <CardContent className='p-3 sm:p-4'>
+      <CardContent>
         {chart.points.length === 0 ? (
-          <div className='text-muted-foreground flex h-48 items-center justify-center rounded-xl border border-dashed text-sm'>
+          <div className='text-muted-foreground flex h-40 items-center justify-center text-sm'>
             {t('No trend data in this range.')}
           </div>
         ) : (
-          <div className='space-y-2'>
-            <div
-              className='bg-muted/20 flex h-48 gap-2 overflow-hidden rounded-xl p-2 sm:h-56 sm:gap-3 sm:p-3'
-              role='img'
-              aria-label={t('Daily input and output token trend')}
-            >
-              <div className='text-muted-foreground flex w-9 shrink-0 flex-col justify-between pt-1 pb-7 text-right text-[10px]'>
-                {[chart.maxValue, chart.maxValue / 2, 0].map((value) => (
-                  <span key={value}>{formatUsageCompactNumber(value)}</span>
-                ))}
-              </div>
-              <div className='min-w-0 flex-1 overflow-x-auto'>
-                <div className='relative flex h-full min-w-[420px] flex-col'>
-                  <div className='pointer-events-none absolute inset-x-0 top-1 bottom-7 flex flex-col justify-between'>
-                    {[0, 1, 2].map((line) => (
-                      <span
-                        key={line}
-                        className='border-border/70 border-t border-dashed'
-                      />
-                    ))}
-                  </div>
-                  <div className='relative z-10 flex min-h-0 flex-1 items-end justify-between gap-1 px-1 pb-7 sm:gap-2'>
-                    {chart.points.map((point) => {
-                      const inputHeight =
-                        point.input > 0
-                          ? Math.max(3, (point.input / chart.maxValue) * 100)
-                          : 0
-                      const outputHeight =
-                        point.output > 0
-                          ? Math.max(3, (point.output / chart.maxValue) * 100)
-                          : 0
-
-                      return (
-                        <div
-                          key={point.timestamp}
-                          className='flex h-full min-w-3 flex-1 items-end justify-center gap-0.5 sm:gap-1'
-                        >
-                          <span
-                            className='bg-chart-1/85 max-w-5 min-w-1.5 rounded-t-sm shadow-[0_4px_9px_color-mix(in_oklch,var(--chart-1)_18%,transparent)]'
-                            style={{ height: `${inputHeight}%` }}
-                            data-testid={`usage-trend-input-${point.timestamp}`}
-                            title={formatUsageNumber(point.input)}
-                            aria-label={`${formatTrendDate(point.timestamp)} ${t('Input Tokens')}: ${formatUsageNumber(point.input)}`}
-                          />
-                          <span
-                            className='bg-chart-2/75 max-w-5 min-w-1.5 rounded-t-sm'
-                            style={{ height: `${outputHeight}%` }}
-                            data-testid={`usage-trend-output-${point.timestamp}`}
-                            title={formatUsageNumber(point.output)}
-                            aria-label={`${formatTrendDate(point.timestamp)} ${t('Output Tokens')}: ${formatUsageNumber(point.output)}`}
-                          />
-                        </div>
-                      )
-                    })}
-                  </div>
-                  <div className='text-muted-foreground absolute inset-x-1 bottom-0 flex h-5 justify-between gap-1 overflow-hidden text-[10px]'>
-                    {chart.points.map((point, index) => {
-                      const shouldShowLabel =
-                        chart.points.length <= 4 ||
-                        index === 0 ||
-                        index === Math.floor((chart.points.length - 1) / 2) ||
-                        index === chart.points.length - 1
-                      return (
-                        <span
-                          key={point.timestamp}
-                          className='min-w-3 flex-1 truncate text-center'
-                        >
-                          {shouldShowLabel
-                            ? formatTrendDate(point.timestamp)
-                            : ''}
-                        </span>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
+          <div
+            className='flex h-40 gap-3'
+            role='img'
+            aria-label={t('Daily total token trend')}
+          >
+            <div className='text-muted-foreground flex w-12 shrink-0 flex-col justify-between pb-6 text-right text-xs'>
+              <span>{format.compact(chart.max)}</span>
+              <span>{format.compact(chart.max / 2)}</span>
+              <span>0</span>
             </div>
-            <div className='text-muted-foreground flex flex-wrap justify-between gap-x-4 gap-y-1 text-[11px]'>
-              <span>
-                {t('Peak daily total')}:{' '}
-                {formatUsageCompactNumber(chart.peakDailyTotal)}
-              </span>
-              <span>
-                {t('Days shown')}: {chart.points.length}
-              </span>
+            <div className='min-w-0 flex-1 overflow-x-auto'>
+              <div
+                className='flex h-full min-w-full gap-2'
+                // 日期也需要可读宽度；窄屏只在图内滚动，不裁掉首尾日期。
+                style={{ minWidth: chart.points.length * 40 }}
+              >
+                {chart.points.map((point, index) => {
+                  const date = new Date(point.timestamp * 1000)
+                  const dateLabel = Number.isNaN(date.getTime())
+                    ? '—'
+                    : dateFormat.format(date)
+                  const showDate =
+                    chart.points.length <= 7 ||
+                    index === 0 ||
+                    index === Math.floor((chart.points.length - 1) / 2) ||
+                    index === chart.points.length - 1
+                  return (
+                    <div
+                      key={point.timestamp}
+                      className='flex min-w-0 flex-1 flex-col'
+                    >
+                      <div className='border-border flex min-h-0 flex-1 items-end justify-center border-b'>
+                        <span
+                          className='bg-chart-1/75 block w-full max-w-8 rounded-t-sm'
+                          style={{
+                            height: `${(point.total / chart.max) * 100}%`,
+                          }}
+                          data-testid={`usage-trend-total-${point.timestamp}`}
+                          title={format.number(point.total)}
+                          aria-label={`${dateLabel}: ${format.number(point.total)} Token`}
+                        />
+                      </div>
+                      <span className='text-muted-foreground mt-1 h-5 text-center text-[11px] whitespace-nowrap'>
+                        {showDate ? dateLabel : ''}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
         )}

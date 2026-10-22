@@ -20,6 +20,8 @@ import { useTranslation } from 'react-i18next'
 import { ErrorState } from '@/components/error-state'
 import { SectionPageLayout } from '@/components/layout'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Empty,
   EmptyDescription,
@@ -72,17 +74,11 @@ function toServerTotals(data: {
 }
 
 function UsageSummaryLoading() {
-  const skeletonKeys = [
-    'requests',
-    'input-tokens',
-    'output-tokens',
-    'total-tokens',
-    'quota',
-  ]
+  const skeletonKeys = ['requests', 'total-tokens', 'quota', 'cost']
 
   return (
     <div className='space-y-4' data-testid='usage-summary-loading'>
-      <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-5'>
+      <div className='grid grid-cols-2 gap-3 xl:grid-cols-4'>
         {skeletonKeys.map((key) => (
           <Skeleton key={key} className='h-[76px] w-full rounded-xl' />
         ))}
@@ -169,25 +165,35 @@ export function UsageSummary() {
         </Empty>
       ) : (
         <>
-          <section aria-labelledby='usage-summary-token-heading'>
-            <h3
-              id='usage-summary-token-heading'
-              className='mb-2 text-sm font-semibold'
-            >
-              {t('API Token Summary')}
-            </h3>
-            <TokenTable
-              tokens={view.tokens}
-              totalTokens={view.totals.totalTokens}
-              selectedKey={selectedToken?.key}
-              onSelect={handleTokenSelect}
-            />
-          </section>
-          <section aria-labelledby='usage-summary-detail-heading'>
-            <h3
-              id='usage-summary-detail-heading'
-              className='mb-2 text-sm font-semibold'
-            >
+          <Card
+            size='sm'
+            className='min-w-0 shrink-0'
+            role='region'
+            aria-labelledby='usage-summary-token-heading'
+          >
+            <CardHeader className='flex flex-wrap items-center justify-between gap-2'>
+              <CardTitle>
+                <h3 id='usage-summary-token-heading'>
+                  {t('API Token Summary')}
+                </h3>
+              </CardTitle>
+              <p className='text-muted-foreground text-xs'>
+                {t('Select a token to view details below.')}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <TokenTable
+                tokens={view.tokens}
+                selectedKey={selectedToken?.key}
+                onSelect={handleTokenSelect}
+              />
+            </CardContent>
+          </Card>
+          <section
+            className='min-w-0 shrink-0'
+            aria-labelledby='usage-summary-detail-heading'
+          >
+            <h3 id='usage-summary-detail-heading' className='sr-only'>
               {t('Token Details')}
             </h3>
             <TokenDetail
@@ -208,18 +214,18 @@ export function UsageSummary() {
                 {errorTitle}
                 {errorDescription ? `: ${errorDescription}` : null}
               </span>
-              <button
-                type='button'
+              <Button
+                variant='link'
                 className='font-medium underline underline-offset-4'
                 onClick={() => void query.refetch()}
               >
                 {t('Retry')}
-              </button>
+              </Button>
             </AlertDescription>
           </Alert>
         )}
         <UsageSummaryCards totals={toServerTotals(data)} />
-        <div className='grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]'>
+        <div className='grid min-w-0 shrink-0 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]'>
           <UsageTrend points={data.trend ?? []} />
           <TokenDistribution
             tokens={view.tokens}
@@ -227,6 +233,11 @@ export function UsageSummary() {
           />
         </div>
         {loadedContent}
+        <p className='text-muted-foreground shrink-0 text-xs leading-relaxed'>
+          {t(
+            'Consumed quota comes from logs. Equivalent cost uses site conversion settings, not upstream cost.'
+          )}
+        </p>
       </>
     )
   } else {

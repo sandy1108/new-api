@@ -14,56 +14,13 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-import {
-  Activity,
-  ArrowDownToLine,
-  ArrowUpToLine,
-  Coins,
-  Hash,
-} from 'lucide-react'
+import { Activity, Coins, Layers, Wallet } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
+import { Card, CardContent } from '@/components/ui/card'
 
-import {
-  formatUsageCompactNumber,
-  formatUsageNumber,
-  formatUsageQuota,
-} from '../lib/format'
+import { useUsageFormat } from '../hooks/use-usage-format'
 import type { UsageMetrics } from '../types'
-
-const metricCards = [
-  {
-    key: 'requests',
-    labelKey: 'Requests',
-    icon: Activity,
-    iconTone: 'chart-1',
-  },
-  {
-    key: 'inputTokens',
-    labelKey: 'Input Tokens',
-    icon: ArrowDownToLine,
-    iconTone: 'chart-2',
-  },
-  {
-    key: 'outputTokens',
-    labelKey: 'Output Tokens',
-    icon: ArrowUpToLine,
-    iconTone: 'chart-3',
-  },
-  {
-    key: 'totalTokens',
-    labelKey: 'Total Tokens',
-    icon: Hash,
-    iconTone: 'chart-4',
-  },
-  {
-    key: 'quota',
-    labelKey: 'Quota',
-    icon: Coins,
-    iconTone: 'chart-5',
-  },
-] as const
 
 export interface UsageSummaryCardsProps {
   totals: UsageMetrics
@@ -71,59 +28,77 @@ export interface UsageSummaryCardsProps {
 
 export function UsageSummaryCards(props: UsageSummaryCardsProps) {
   const { t } = useTranslation()
+  const format = useUsageFormat()
+  const cost = format.cost(props.totals.quota)
+  const metrics = [
+    {
+      key: 'tokens',
+      label: t('Total Tokens'),
+      icon: Layers,
+      value: format.compact(props.totals.totalTokens),
+      title: format.number(props.totals.totalTokens),
+      detail: `${t('Input')}: ${format.compact(props.totals.inputTokens)} / ${t('Output')}: ${format.compact(props.totals.outputTokens)}`,
+      detailTitle: `${t('Input')}: ${format.number(props.totals.inputTokens)} / ${t('Output')}: ${format.number(props.totals.outputTokens)}`,
+    },
+    {
+      key: 'requests',
+      label: t('Requests'),
+      icon: Activity,
+      value: format.number(props.totals.requests),
+      title: format.number(props.totals.requests),
+      detail: t('Total in selected range'),
+    },
+    {
+      key: 'quota',
+      label: t('Consumed quota'),
+      icon: Coins,
+      value: format.compact(props.totals.quota),
+      title: format.number(props.totals.quota),
+      detail: t('Internal units recorded in logs'),
+    },
+    {
+      key: 'cost',
+      label: t('Equivalent cost'),
+      icon: Wallet,
+      value: cost.cny ?? t('Unavailable'),
+      title: cost.cny ?? t('Unavailable'),
+      detail: `${cost.usd ?? t('Unavailable')} · ${t('Site conversion')}`,
+    },
+  ]
 
   return (
     <div
-      className='bg-card overflow-hidden rounded-2xl border shadow-xs'
+      className='grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4'
       data-testid='usage-summary-cards'
     >
-      <div className='grid min-w-0 grid-cols-2 divide-x divide-y lg:grid-cols-5 lg:divide-y-0'>
-        {metricCards.map((metric, index) => {
-          const Icon = metric.icon
-          const rawValue = props.totals[metric.key]
-          const fullValue =
-            metric.key === 'quota'
-              ? formatUsageQuota(rawValue)
-              : formatUsageNumber(rawValue)
-          const value =
-            metric.key === 'quota'
-              ? fullValue
-              : formatUsageCompactNumber(rawValue)
-
-          return (
-            <div
-              key={metric.key}
-              className={`group min-w-0 px-2.5 py-2.5 sm:px-5 sm:py-4 ${
-                index === metricCards.length - 1
-                  ? 'col-span-2 lg:col-span-1'
-                  : ''
-              }`}
-            >
-              <div className='flex min-w-0 items-center gap-1.5 sm:gap-2'>
-                <IconBadge
-                  tone={metric.iconTone as IconBadgeTone}
-                  size='stat'
-                  className='size-5 rounded-md sm:size-7 sm:rounded-lg [&>svg]:size-3 sm:[&>svg]:size-3.5'
-                >
-                  <Icon />
-                </IconBadge>
-                <div className='text-muted-foreground truncate text-[11px] leading-4 font-medium tracking-wide sm:text-xs sm:tracking-wider'>
-                  {t(metric.labelKey)}
-                </div>
-              </div>
-              <div
-                className='text-foreground mt-2 truncate font-mono text-lg leading-tight font-semibold tracking-tight tabular-nums sm:mt-3 sm:text-2xl'
-                title={fullValue}
-              >
-                {value}
-              </div>
-              <div className='text-muted-foreground/65 mt-1 truncate text-[10px] sm:text-xs'>
-                {t('Raw value: {{value}}', { value: fullValue })}
-              </div>
+      {metrics.map((metric) => (
+        <Card
+          key={metric.key}
+          size='sm'
+          className='min-w-0'
+          role='group'
+          aria-label={metric.label}
+        >
+          <CardContent>
+            <div className='text-muted-foreground flex items-center gap-2 text-xs'>
+              <metric.icon className='size-3.5 shrink-0' aria-hidden='true' />
+              {metric.label}
             </div>
-          )
-        })}
-      </div>
+            <div
+              className='mt-2 text-xl font-semibold tracking-tight break-words tabular-nums sm:text-2xl'
+              title={metric.title}
+            >
+              {metric.value}
+            </div>
+            <p
+              className='text-muted-foreground mt-1 text-xs'
+              title={metric.detailTitle}
+            >
+              {metric.detail}
+            </p>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   )
 }

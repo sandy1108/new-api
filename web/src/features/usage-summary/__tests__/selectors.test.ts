@@ -20,6 +20,7 @@ import {
   aggregateUsageItems,
   selectDefaultChannel,
   selectDefaultToken,
+  aggregateTokenModels,
 } from '../lib/selectors'
 import type { UsageSummaryItem } from '../types'
 
@@ -42,6 +43,58 @@ function makeItem(overrides: Partial<UsageSummaryItem>): UsageSummaryItem {
 }
 
 describe('usage summary selectors', () => {
+  test('combines a selected token model across channels without including other tokens', () => {
+    const view = aggregateUsageItems([
+      makeItem({
+        channel_id: 2,
+        input_tokens: 100,
+        output_tokens: 20,
+        requests: 3,
+        quota: 500,
+      }),
+      makeItem({
+        channel_id: 3,
+        channel_name: 'Backup',
+        input_tokens: 50,
+        output_tokens: 10,
+        requests: 2,
+        quota: 200,
+      }),
+      makeItem({
+        channel_id: 3,
+        channel_name: 'Backup',
+        model_name: 'other',
+        input_tokens: 20,
+        output_tokens: 5,
+        requests: 1,
+        quota: 100,
+      }),
+      makeItem({ token_id: 11, input_tokens: 9999 }),
+    ])
+    const token = view.tokens.find((entry) => entry.id === 10)
+    expect(token).toBeDefined()
+    if (!token) throw new Error('Expected token 10')
+    expect(aggregateTokenModels(token)).toEqual([
+      {
+        name: 'gpt-5.6',
+        inputTokens: 150,
+        outputTokens: 30,
+        totalTokens: 180,
+        requests: 5,
+        quota: 700,
+      },
+      {
+        name: 'other',
+        inputTokens: 20,
+        outputTokens: 5,
+        totalTokens: 25,
+        requests: 1,
+        quota: 100,
+      },
+    ])
+    expect(token.channels).toHaveLength(2)
+    expect(aggregateTokenModels({ ...token, channels: [] })).toEqual([])
+  })
   test('sums server aggregation rows without expanding request counts', () => {
     const view = aggregateUsageItems([
       makeItem({

@@ -149,6 +149,28 @@ export function selectDefaultToken(
   return tokens[0]
 }
 
+/** 跨渠道汇总当前令牌的模型；不修改渠道内明细，也不合入其他令牌。 */
+export function aggregateTokenModels(
+  token: UsageTokenBucket
+): UsageModelBucket[] {
+  const models = new Map<string, UsageModelBucket>()
+  for (const channel of token.channels) {
+    for (const model of channel.models) {
+      const total = models.get(model.name) ?? {
+        ...createMetrics(),
+        name: model.name,
+      }
+      total.requests += model.requests
+      total.inputTokens += model.inputTokens
+      total.outputTokens += model.outputTokens
+      total.totalTokens += model.totalTokens
+      total.quota += model.quota
+      models.set(model.name, total)
+    }
+  }
+  return sortByTotalTokens([...models.values()])
+}
+
 /**
  * 解析当前渠道；令牌或时间范围变化后，失效的 key 必须回退到最高用量渠道。
  */
