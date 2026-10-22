@@ -1144,3 +1144,12 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - Git外交接包`new-api-pre-switch-20261022-pong-version`已准备三件套及来源/边界/备份/切换后校验工具，状态pending。发包准备在线备份`evidence/prepare-2NlupO/`：PG dump6885294字节，SHA-256 `47170789fbce2a52ad6d3792c892d6dc2e5580fa3bf692635fcabd4e48ff3549`，10文件大小/SHA、dump目录及tar可读性通过；在线非跨资源事务一致，执行前必须再做pre-cutover新鲜备份，不自动恢复DB。
 - 发布只交独立执行Agent在用户停机二次确认后进行：唯一生产镜像行变化、`--no-build --pull never --no-deps`仅重建new-api，其余五容器/环境/挂载与数据保持；切后除健康/配置/数据保留外必须核对完整version及HTTPS页面。回滚原正式镜像`new-api:v1.0.0-rc.45-20261022-01-g457bb66fe`（ID`8df0e2b23f68…`），其version为空是原行为。本轮生产Compose、容器不变，未生产发布/推送；不清其他项目、Docker缓存或历史回滚镜像。
 - 最终验证补记：正确锁定依赖下3文件65项定向测试与全量211文件2445项全部通过，全前端tsgo、3文件lint零错误零警告及只读格式检查全部通过，整条串行命令退出0。仅使用一次性工具容器和本次专用依赖卷，不修改旧共享卷；工具容器退出后自动移除，专用卷验证无容器引用后移除，不含业务数据。来源/前检与10文件备份复核通过，扫描器识别新包pending且无元数据错误。工程文档单独提交并快进personal/main，非docs树保持功能提交一致；知识库版本进度同步。实际生产切换/登录态验收仍由执行包完成，不提前标completed。
+
+### 2026-10-22：PONG版本03生产切换、用户补验与交接完成
+
+- 豆包按交接包完成生产切换，用户随后登录补验顶栏完整版本、更新弹窗、768px/360px响应式、Token用量双币种、账本入口和客户端凭据列表，并确认通过；交接包状态由`blocked`更新为`completed`。保留原执行反馈和独立核验记录，不把用户视觉验收写成Codex亲自操作浏览器。
+- 生产运行镜像`new-api:v1.0.0-rc.45-pong.20261022.03-gaa43325e5`，ID `sha256:36655cd941f0ce49fbae29824653fcf9b60eee799d3815dc981dfd8789e45120`，与已验收永久测试镜像完全一致，未重新构建。程序版本`v1.0.0-rc.45+pong.20261022.03`；容器running/healthy、RestartCount=0、OOMKilled=false，`/api/status`成功且版本值精确匹配。
+- 生产Compose相对切换前快照只有应用镜像一行变化；加密登录及HTTPS会话变量保留。只重建`new-api`应用，PostgreSQL、Redis及其余生产容器、环境和挂载不变；生产数据与账本配置/主体/历史快照/人工决定经独立校验保留。没有新增数据库迁移，不恢复数据库。
+- 切换前新鲜备份位于交接包`evidence/pre-cutover-kkDVRK/`：10份文件校验通过；PostgreSQL dump 6,894,232字节，SHA-256 `e45fe7a6985e59f81cad8bffff247bbd294d8faeb4b96a941a1084123d2c1f88`。这是在线备份，不代表跨资源事务一致性，也未进行恢复演练。回滚镜像保留为`new-api:v1.0.0-rc.45-20261022-01-g457bb66fe`（ID `sha256:8df0e2b23f6856e35f5225e323e69ef8a1b81aad7bebaf19f20e6deb20eee983`）；本次无回滚。
+- 执行反馈记录切换于北京时间20:59:54。切换后外部HTTPS及容器内状态接口成功；真实Codex `/v1/responses`自然流量返回200（执行Agent观测），不等同于本轮主动进行的逐帧SSE/结算专项。未主动请求上游额度、刷新OAuth或调用付费模型。
+- 本次相关功能源码提交`aa43325e5163a07a9b40120cc0b826c4fc317c10`、此前发布文档提交`8f7bbf7b25df5c1caaa52ab7797fb8dec0b65b24`已在`personal/main`历史；功能分支`feature/usage-summary-costs`已包含于个人主分支。新增本段为最终生产日志，随后单独提交并快进同步到`personal/main`；提交/推送状态以本轮收尾提交及远端读回为准。仅推送`myfork`，不推送官方`origin`。
