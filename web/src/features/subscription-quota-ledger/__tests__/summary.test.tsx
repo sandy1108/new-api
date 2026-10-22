@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
+import {
   cleanup,
   act,
   fireEvent,
@@ -70,7 +76,12 @@ function renderLedger() {
   })
   render(
     <QueryClientProvider client={client}>
-      <Harness />
+      <RouterProvider
+        router={createRouter({
+          routeTree: createRootRoute({ component: Harness }),
+          history: createMemoryHistory({ initialEntries: ['/'] }),
+        })}
+      />
     </QueryClientProvider>
   )
 }
@@ -130,6 +141,16 @@ test('switching subscription loads its own summary and preserves unknown versus 
   })
   renderLedger()
   await screen.findByText('0.0034')
+  expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+    'Overview',
+    'Cycles and events',
+  ])
+  expect(
+    screen.getByRole('link', { name: 'Subscription quota ledger settings' })
+  ).toHaveAttribute('href', '/system-settings/subscription-quota')
+  expect(
+    screen.queryByRole('switch', { name: 'Enable quota collection' })
+  ).not.toBeInTheDocument()
   expect(screen.getByRole('alert')).toHaveTextContent(
     'Weekly accounting is paused at an unresolved event. Later observations are retained but are not yet included. Review it in History; do not confirm a reset just to increase the total.'
   )
@@ -206,6 +227,13 @@ test('empty subscriptions offer settings and failed queries show retry', async (
   })
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
   await screen.findByText('No monitored subscriptions')
+  const settingsLinks = screen.getAllByRole('link', {
+    name: 'Subscription quota ledger settings',
+  })
+  expect(settingsLinks).toHaveLength(2)
+  for (const link of settingsLinks) {
+    expect(link).toHaveAttribute('href', '/system-settings/subscription-quota')
+  }
 })
 
 test('month uses Beijing boundary and forms reject invalid interval and empty decision reasons', () => {

@@ -1,5 +1,6 @@
 {
   "translation": {
+    "Subscription quota ledger settings": "Cấu hình sổ hạn mức đăng ký",
     "Decision explanation": "Giải thích cách xử lý",
     "Accounting paused since": "Tạm dừng thống kê từ",
     "Confirm that a reset occurred. This starts a new local cycle and counts its observed usage; it does not reset upstream quota or add a whole unit.": "Xác nhận đã xảy ra đặt lại. Bắt đầu chu kỳ cục bộ mới và tính mức dùng quan sát được; không đặt lại hạn mức phía nhà cung cấp hay cộng nguyên một đơn vị.",

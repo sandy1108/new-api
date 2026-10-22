@@ -100,4 +100,4 @@ export type Filters = {
   month: string
   window_seconds: number
 }
-export type View = 'overview' | 'history' | 'settings'
+export type View = 'overview' | 'history'

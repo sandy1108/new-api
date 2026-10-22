@@ -40,6 +40,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { pongAPIConsoleItems } from '@/components/layout/config/pong-api-console.config'
 import type { SidebarData } from '@/components/layout/types'
 import { ROLE } from '@/lib/roles'
 
@@ -104,6 +105,7 @@ export function useSidebarData(): SidebarData {
             url: '/usage-summary',
             icon: BarChart3,
           },
+          ...pongAPIConsoleItems(t),
           {
             title: t('Task Logs'),
             url: '/usage-logs/task',

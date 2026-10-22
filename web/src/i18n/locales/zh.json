@@ -1,5 +1,6 @@
 {
   "translation": {
+    "Subscription quota ledger settings": "订阅额度账本配置",
     "Decision explanation": "处理方式说明",
     "Accounting paused since": "暂停计账起点",
     "Confirm that a reset occurred. This starts a new local cycle and counts its observed usage; it does not reset upstream quota or add a whole unit.": "确认确实发生过重置：从这里开始新一轮，累计新一轮观测到的用量；不会重置上游额度，也不会直接增加一整份。",

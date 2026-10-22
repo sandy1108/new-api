@@ -1,5 +1,6 @@
 {
   "translation": {
+    "Subscription quota ledger settings": "Configuration du registre des quotas d’abonnement",
     "Decision explanation": "Explication de la décision",
     "Accounting paused since": "Comptabilisation suspendue depuis",
     "Confirm that a reset occurred. This starts a new local cycle and counts its observed usage; it does not reset upstream quota or add a whole unit.": "Confirme une réinitialisation déjà survenue. Démarre un cycle local et compte son usage observé, sans réinitialiser le quota fournisseur ni ajouter une unité entière.",

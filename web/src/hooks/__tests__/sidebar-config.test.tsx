@@ -18,14 +18,17 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, renderHook } from '@testing-library/react'
+import i18next from 'i18next'
 import type { ReactNode } from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { SYSTEM_SETTINGS_VIEW } from '@/components/layout/config/system-settings.config'
 import { checkIsActive } from '@/components/layout/lib/url-utils'
 import {
   parseSidebarModulesAdmin,
   serializeSidebarModulesAdmin,
 } from '@/features/system-settings/maintenance/config'
+import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { useSidebarConfig } from '../use-sidebar-config'
@@ -178,5 +181,39 @@ describe('audit log sidebar entry', () => {
       .map((item) => item.title)
     expect(titles).not.toContain('Usage Logs')
     expect(titles).toContain('Audit Logs')
+  })
+})
+
+describe('private subscription quota navigation', () => {
+  it('console links to the ledger while the custom system group links only to settings', () => {
+    const { result } = renderHook(useSidebarData)
+    const general = result.current.navGroups.find(
+      (group) => group.id === 'general'
+    )
+    const ledger = general?.items.find(
+      (item) => item.title === 'Subscription quota ledger'
+    )
+    assert(ledger, 'Subscription quota ledger navigation must exist')
+    expect(ledger).toMatchObject({
+      url: '/subscription-quota',
+      requiredRole: ROLE.SUPER_ADMIN,
+    })
+    expect(checkIsActive('/subscription-quota', ledger)).toBe(true)
+    expect(checkIsActive('/system-settings/subscription-quota', ledger)).toBe(
+      false
+    )
+    useAuthStore
+      .getState()
+      .auth.setUser({ id: 1, username: 'root', role: ROLE.SUPER_ADMIN })
+    const custom = SYSTEM_SETTINGS_VIEW.getNavGroups(i18next.t).find(
+      (group) => group.id === 'pong-api-settings'
+    )
+    expect(custom?.items.map((item) => item.title)).toEqual([
+      'Client access credentials',
+      'Subscription quota ledger settings',
+    ])
+    expect(custom?.items[1]).toMatchObject({
+      url: '/system-settings/subscription-quota',
+    })
   })
 })

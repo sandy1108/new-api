@@ -1,5 +1,6 @@
 {
   "translation": {
+    "Subscription quota ledger settings": "Настройки журнала квоты подписки",
     "Decision explanation": "Пояснение к решению",
     "Accounting paused since": "Учёт приостановлен с",
     "Confirm that a reset occurred. This starts a new local cycle and counts its observed usage; it does not reset upstream quota or add a whole unit.": "Подтвердить уже произошедший сброс. Начинается новый локальный цикл с учётом наблюдаемого расхода; квота провайдера не сбрасывается и целая единица не добавляется.",

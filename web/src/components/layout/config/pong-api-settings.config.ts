@@ -20,7 +20,7 @@ export function pongAPISettingsGroup(t: TFunction, role: number): NavGroup[] {
           requiredRole: ROLE.SUPER_ADMIN,
         },
         {
-          title: t('Subscription quota ledger'),
+          title: t('Subscription quota ledger settings'),
           url: '/system-settings/subscription-quota',
           icon: ChartNoAxesCombined,
           requiredRole: ROLE.SUPER_ADMIN,

@@ -1,5 +1,6 @@
 {
   "translation": {
+    "Subscription quota ledger settings": "サブスクリプション割当台帳の設定",
     "Decision explanation": "処理方法の説明",
     "Accounting paused since": "集計の停止開始時刻",
     "Confirm that a reset occurred. This starts a new local cycle and counts its observed usage; it does not reset upstream quota or add a whole unit.": "実際にリセットが発生したことを確認します。新しいローカル周期の観測使用量を集計しますが、上流の割当はリセットせず、1単位を加算する操作でもありません。",

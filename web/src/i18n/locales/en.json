@@ -1,5 +1,6 @@
 {
   "translation": {
+    "Subscription quota ledger settings": "Subscription quota ledger settings",
     "Decision explanation": "Decision explanation",
     "Accounting paused since": "Accounting paused since",
     "Confirm that a reset occurred. This starts a new local cycle and counts its observed usage; it does not reset upstream quota or add a whole unit.": "Confirm that a reset occurred. This starts a new local cycle and counts its observed usage; it does not reset upstream quota or add a whole unit.",

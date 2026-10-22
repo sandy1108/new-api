@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -14,7 +15,6 @@ import { getSubjects, quotaKey } from './api'
 import { QuotaHistory } from './components/history'
 import { QuotaOverview } from './components/overview'
 import { QuotaSelect } from './components/quota-select'
-import { QuotaSettings } from './components/settings'
 import { beijingMonth } from './lib/forms'
 import type { View } from './types'
 
@@ -46,15 +46,20 @@ export function SubscriptionQuotaLedger(props: {
       <SectionPageLayout.Title>
         {t('Subscription quota ledger')}
       </SectionPageLayout.Title>
+      <SectionPageLayout.Actions>
+        <Button
+          role='link'
+          variant='outline'
+          render={<Link to='/system-settings/subscription-quota' />}
+        >
+          {t('Subscription quota ledger settings')}
+        </Button>
+      </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
         <Tabs
           value={props.view}
           onValueChange={(value) => {
-            if (
-              value === 'overview' ||
-              value === 'history' ||
-              value === 'settings'
-            ) {
+            if (value === 'overview' || value === 'history') {
               props.onViewChange(value)
             }
           }}
@@ -63,9 +68,6 @@ export function SubscriptionQuotaLedger(props: {
           <TabsList aria-label={t('Subscription quota ledger')}>
             <TabsTrigger value='overview'>{t('Overview')}</TabsTrigger>
             <TabsTrigger value='history'>{t('Cycles and events')}</TabsTrigger>
-            <TabsTrigger value='settings'>
-              {t('Collection settings')}
-            </TabsTrigger>
           </TabsList>
           {subjects.isPending && <LoadingState />}
           {subjects.isError && (
@@ -73,90 +75,77 @@ export function SubscriptionQuotaLedger(props: {
           )}
           {subjects.data && (
             <>
-              <TabsContent value='settings'>
-                <QuotaSettings
-                  subjects={subjects.data.items}
-                  subjectPage={subjectPage}
-                  total={subjects.data.total}
-                  onPage={setSubjectPage}
+              {!subject && (
+                <EmptyState
+                  title={t('No monitored subscriptions')}
+                  action={
+                    <Button
+                      role='link'
+                      render={<Link to='/system-settings/subscription-quota' />}
+                    >
+                      {t('Subscription quota ledger settings')}
+                    </Button>
+                  }
                 />
-              </TabsContent>
-              {props.view !== 'settings' && (
+              )}
+              {subject && (
                 <>
-                  {!subject && (
-                    <EmptyState
-                      title={t('No monitored subscriptions')}
-                      action={
-                        <Button onClick={() => props.onViewChange('settings')}>
-                          {t('Collection settings')}
-                        </Button>
-                      }
+                  <div className='flex min-w-0 flex-wrap items-center gap-3'>
+                    <QuotaSelect
+                      label={t('Subscription')}
+                      value={String(subject.id)}
+                      onChange={(value) => setSelectedSubject(Number(value))}
+                      options={subjects.data.items.map((item) => ({
+                        value: String(item.id),
+                        label: item.name,
+                      }))}
                     />
-                  )}
-                  {subject && (
-                    <>
-                      <div className='flex min-w-0 flex-wrap items-center gap-3'>
-                        <QuotaSelect
-                          label={t('Subscription')}
-                          value={String(subject.id)}
-                          onChange={(value) =>
-                            setSelectedSubject(Number(value))
-                          }
-                          options={subjects.data.items.map((item) => ({
-                            value: String(item.id),
-                            label: item.name,
-                          }))}
-                        />
-                        <Input
-                          aria-label={t('Month (Asia/Shanghai)')}
-                          type='month'
-                          min='2000-01'
-                          max='2100-12'
-                          className='w-auto'
-                          value={month}
-                          onChange={(event) => {
-                            if (
-                              /^\d{4}-(0[1-9]|1[0-2])$/.test(event.target.value)
-                            ) {
-                              setMonth(event.target.value)
-                            }
-                          }}
-                        />
-                        {subjects.data.total > 100 && (
-                          <>
-                            <Button
-                              variant='outline'
-                              disabled={subjectPage === 1}
-                              onClick={() => setSubjectPage(subjectPage - 1)}
-                            >
-                              {t('Previous')}
-                            </Button>
-                            <Button
-                              variant='outline'
-                              disabled={
-                                subjectPage * 100 >= subjects.data.total
-                              }
-                              onClick={() => setSubjectPage(subjectPage + 1)}
-                            >
-                              {t('Next')}
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                      <TabsContent value='overview'>
-                        <QuotaOverview
-                          key={`${subject.id}/${month}`}
-                          filters={filters}
-                        />
-                      </TabsContent>
-                      <TabsContent value='history'>
-                        <QuotaHistory
-                          key={`${subject.id}/${month}`}
-                          filters={filters}
-                        />
-                      </TabsContent>
-                    </>
-                  )}
+                    <Input
+                      aria-label={t('Month (Asia/Shanghai)')}
+                      type='month'
+                      min='2000-01'
+                      max='2100-12'
+                      className='w-auto'
+                      value={month}
+                      onChange={(event) => {
+                        if (
+                          /^\d{4}-(0[1-9]|1[0-2])$/.test(event.target.value)
+                        ) {
+                          setMonth(event.target.value)
+                        }
+                      }}
+                    />
+                    {subjects.data.total > 100 && (
+                      <>
+                        <Button
+                          variant='outline'
+                          disabled={subjectPage === 1}
+                          onClick={() => setSubjectPage(subjectPage - 1)}
+                        >
+                          {t('Previous')}
+                        </Button>
+                        <Button
+                          variant='outline'
+                          disabled={subjectPage * 100 >= subjects.data.total}
+                          onClick={() => setSubjectPage(subjectPage + 1)}
+                        >
+                          {t('Next')}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  <TabsContent value='overview'>
+                    <QuotaOverview
+                      key={`${subject.id}/${month}`}
+                      filters={filters}
+                    />
+                  </TabsContent>
+                  <TabsContent value='history'>
+                    <QuotaHistory
+                      key={`${subject.id}/${month}`}
+                      filters={filters}
+                    />
+                  </TabsContent>
                 </>
               )}
             </>
