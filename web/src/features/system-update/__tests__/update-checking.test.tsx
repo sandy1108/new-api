@@ -163,7 +163,9 @@ describe('administrator update entry', () => {
     })
     expect(buttons).toHaveLength(2)
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(within(buttons[0]).getByText('v1.0.0-rc.35')).toHaveClass('truncate')
+    expect(within(buttons[0]).getByText('v1.0.0-rc.35')).not.toHaveClass(
+      'truncate'
+    )
     expect(within(buttons[0]).getByText('Update available')).toHaveClass(
       'hidden',
       '@min-[22rem]/system-brand:inline-flex'
@@ -429,20 +431,25 @@ describe('version label presentation', () => {
     ).toBeInTheDocument()
   })
 
-  test('keeps a long version accessible in the tooltip while constraining its visible label', async () => {
-    const version = 'v1.0.0+long-build-metadata-for-a-custom-deployment'
+  test('shows the complete custom version with wrapping instead of ellipsis while retaining the narrow-screen icon fallback', async () => {
+    const version = 'v1.0.0-rc.45+pong.20261022.02'
     client.setQueryData(STATUS_QUERY_KEY, { version })
     render(<SystemUpdateAction presentation='version' />, { wrapper: Wrapper })
     const trigger = screen.getByRole('button', {
       name: `System updates, current version: ${version}`,
     })
     expect(trigger).toHaveAttribute('title', expect.stringContaining(version))
-    expect(within(trigger).getByText(version)).toHaveClass(
-      'truncate',
-      'max-w-32',
+    const versionLabel = within(trigger).getByText(version)
+    expect(versionLabel).not.toHaveClass('truncate')
+    expect(versionLabel).not.toHaveClass('max-w-32')
+    expect(versionLabel).toHaveClass(
+      'wrap-anywhere',
+      'whitespace-normal',
       'hidden',
       '@min-[22rem]/system-brand:inline'
     )
+    expect(trigger).toHaveClass('min-w-0', 'shrink')
+    expect(trigger).toHaveClass('@min-[22rem]/system-brand:h-auto')
     await waitFor(() => expect(trigger).toHaveAttribute('aria-busy', 'false'))
   })
 })

@@ -104,7 +104,8 @@ function AdminSystemUpdateAction(props: SystemUpdateActionProps) {
           )}
           aria-hidden='true'
         />
-        <span className='hidden max-w-32 truncate font-mono text-xs @min-[22rem]/system-brand:inline'>
+        {/* 私有构建元数据也是版本的一部分，允许换行而不是截断日期与序号。 */}
+        <span className='hidden min-w-0 font-mono text-xs wrap-anywhere whitespace-normal @min-[22rem]/system-brand:inline'>
           {version}
         </span>
         {update.shouldNotify && (
@@ -136,7 +137,7 @@ function AdminSystemUpdateAction(props: SystemUpdateActionProps) {
           className={cn(
             'relative',
             versionPresentation &&
-              'text-muted-foreground size-8 px-0 @min-[22rem]/system-brand:h-7 @min-[22rem]/system-brand:w-auto @min-[22rem]/system-brand:gap-1.5 @min-[22rem]/system-brand:px-1.5',
+              'text-muted-foreground size-8 min-w-0 shrink px-0 @min-[22rem]/system-brand:h-auto @min-[22rem]/system-brand:min-h-7 @min-[22rem]/system-brand:w-auto @min-[22rem]/system-brand:gap-1.5 @min-[22rem]/system-brand:px-1.5 @min-[22rem]/system-brand:py-1',
             !versionPresentation &&
               compact &&
               'size-8 px-0 lg:w-auto lg:gap-1.5 lg:px-2.5',
