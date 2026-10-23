@@ -88,11 +88,12 @@ function renderLedger() {
 
 test('switching subscription loads its own summary and preserves unknown versus zero', async () => {
   let observedUnits = 0.0034
+  let fiveHourUsed: number | null = 8100
   vi.spyOn(api, 'get').mockImplementation(async (url, config) => {
     if (url.endsWith('/subjects')) {
       return { data: { success: true, data: { items: subjects, total: 2 } } }
     }
-    if (url.endsWith('/trend')) {
+    if (url.endsWith('/trend') || url.endsWith('/cycles')) {
       return { data: { success: true, data: { items: [], total: 0 } } }
     }
     const id = Number(config?.params?.subject_id)
@@ -121,7 +122,7 @@ test('switching subscription loads its own summary and preserves unknown versus 
       },
       current: {
         '18000': {
-          used_basis_points: 8100,
+          used_basis_points: fiveHourUsed,
           reset_at: 1790830800,
           fetched_at: 1790812800,
           quality_code: '',
@@ -158,12 +159,41 @@ test('switching subscription loads its own summary and preserves unknown versus 
     screen.queryByRole('combobox', { name: 'Quota window' })
   ).not.toBeInTheDocument()
   const shortWindow = screen.getByRole('region', {
-    name: 'Five-hour quota status',
+    name: i18next.t('Five-hour quota status'),
   })
-  expect(within(shortWindow).getByText('81%')).toBeInTheDocument()
+  expect(within(shortWindow).getByText('19%')).toBeInTheDocument()
+  expect(within(shortWindow).queryByText('81%')).not.toBeInTheDocument()
+  // 来源明细与统计说明在趋势图之后，视觉和键盘阅读顺序一致。
+  const trendTitle = screen.getByText('Daily observed weekly units')
+  const cycleTitle = screen.getByText('Usage and unused quota by cycle')
+  const detailsToggle = screen.getByRole('button', {
+    name: 'Accounting rules and collection details',
+  })
+  expect(
+    trendTitle.compareDocumentPosition(cycleTitle) &
+      Node.DOCUMENT_POSITION_FOLLOWING
+  ).toBeTruthy()
+  expect(
+    cycleTitle.compareDocumentPosition(detailsToggle) &
+      Node.DOCUMENT_POSITION_FOLLOWING
+  ).toBeTruthy()
   expect(within(shortWindow).getByText(/Expected reset/)).toBeInTheDocument()
+  for (const [used, remaining] of [
+    [0, '100%'],
+    [10000, '0%'],
+    [null, '—'],
+  ] as const) {
+    fiveHourUsed = used
+    await act(() => client.invalidateQueries({ queryKey: quotaKey }))
+    expect(await within(shortWindow).findByText(remaining)).toBeInTheDocument()
+  }
   expect(screen.queryByText('99')).not.toBeInTheDocument()
   expect(screen.queryByText('88')).not.toBeInTheDocument()
+  fireEvent.click(
+    screen.getByRole('button', {
+      name: 'Accounting rules and collection details',
+    })
+  )
   expect(screen.getByText(/Observation gaps \(seconds\)/)).toHaveTextContent(
     'Observation gaps (seconds): 0 · Invalid observations: 0'
   )
@@ -180,6 +210,11 @@ test('switching subscription loads its own summary and preserves unknown versus 
   expect(screen.queryByText('0.0134')).not.toBeInTheDocument()
   expect(screen.getByText('17.5%')).toBeInTheDocument()
   expect(screen.queryByText('0%')).not.toBeInTheDocument()
+  fireEvent.click(
+    screen.getByRole('button', {
+      name: 'Accounting rules and collection details',
+    })
+  )
   expect(
     screen.getByText('Collection is paused, stale or incomplete')
   ).toBeInTheDocument()

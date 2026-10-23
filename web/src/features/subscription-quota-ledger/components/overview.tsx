@@ -12,12 +12,19 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 import { toIntlLocale } from '@/i18n/languages'
 import { formatNumber } from '@/lib/format'
 
 import { getSummary, getTrend, quotaKey } from '../api'
 import { formatWeeklyUnits, ledgerTime } from '../lib/forms'
 import type { Filters } from '../types'
+import { CycleBreakdown } from './cycle-breakdown'
+import { QuotaMetrics } from './quota-metrics'
 
 export function QuotaOverview(props: { filters: Filters }) {
   const { t, i18n } = useTranslation()
@@ -59,40 +66,20 @@ export function QuotaOverview(props: { filters: Filters }) {
   ) {
     collectionStatus = t('Collection needs attention')
   }
-  const cards = [
-    {
-      title: t('Monthly observed weekly units'),
-      value: formatWeeklyUnits(window.observed_units, locale),
-    },
-    {
-      title: t('Current weekly usage'),
-      value:
-        current?.used_basis_points == null
-          ? '—'
-          : `${formatNumber(current.used_basis_points / 100, locale)}%`,
-    },
-    {
-      title: t('Estimated unused weekly units'),
-      value: window.evaluated_cycles
-        ? formatWeeklyUnits(window.unused_units, locale)
-        : '—',
-    },
-    {
-      title: t('Observed weekly resets'),
-      value: formatNumber(window.reset_count, locale),
-    },
-    {
-      title: t('Relative to four weekly units'),
-      value: `${formatNumber((window.observed_units / 4) * 100, locale)}%`,
-    },
-  ]
   return (
     <div className='space-y-4' aria-label={t('Quota overview')}>
-      <p className='text-muted-foreground text-sm'>
-        {t(
-          'One unit equals 100% of a seven-day quota. Initial usage is a baseline; five-hour quota is status only.'
-        )}
-      </p>
+      <div
+        className='text-muted-foreground flex flex-wrap items-center justify-between gap-2 text-xs'
+        role='status'
+      >
+        <span>
+          {t('Collection status')}: {collectionStatus}
+        </span>
+        <span>
+          {t('Last observation')}:{' '}
+          {ledgerTime(current?.fetched_at ?? 0, locale)}
+        </span>
+      </div>
       {!current && (
         <EmptyState
           title={t('Waiting for first observation')}
@@ -101,18 +88,7 @@ export function QuotaOverview(props: { filters: Filters }) {
           )}
         />
       )}
-      <div className='grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-5'>
-        {cards.map((card) => (
-          <Card key={card.title} className='min-w-0'>
-            <CardHeader>
-              <CardTitle>{card.title}</CardTitle>
-            </CardHeader>
-            <CardContent className='text-3xl font-semibold tabular-nums'>
-              {card.value}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <QuotaMetrics data={data} />
       {window.pending_events > 0 && (
         <Alert>
           <AlertTitle>{t('Pending events')}</AlertTitle>
@@ -129,60 +105,6 @@ export function QuotaOverview(props: { filters: Filters }) {
           </AlertDescription>
         </Alert>
       )}
-      <p className='text-muted-foreground text-xs'>
-        {t(
-          'Increases count after each successful observation, not only at resets. This page refreshes every minute; collection follows the configured interval.'
-        )}
-      </p>
-      <p className='text-muted-foreground text-xs'>
-        {t(
-          'Four weekly units are a reference, not the actual monthly allowance or unused quota. Unused estimates may overstate waste between observations.'
-        )}
-      </p>
-      <div
-        className='bg-muted/40 space-y-1 rounded-lg border p-4 text-sm'
-        role='status'
-      >
-        <p>
-          {t('Collection status')}: {collectionStatus}
-        </p>
-        <p>
-          {t('Last observation')}:{' '}
-          {ledgerTime(current?.fetched_at ?? 0, locale)} · {t('Expected reset')}
-          : {ledgerTime(current?.reset_at ?? 0, locale)} (Asia/Shanghai)
-        </p>
-        {(!data.collection_enabled ||
-          current?.stale ||
-          !data.subject.enabled ||
-          data.subject.error_code) && (
-          <p className='text-amber-600'>
-            {t('Collection is paused, stale or incomplete')}
-            {data.subject.error_code && ` · ${data.subject.error_code}`}
-          </p>
-        )}
-        {current?.quality_code && (
-          <p>
-            {t('Unknown observation')}: {current.quality_code}
-          </p>
-        )}
-        <p>
-          {t('Pending events')}: {formatNumber(window.pending_events, locale)} ·{' '}
-          {t('Partial cycles')}: {formatNumber(window.partial_cycles, locale)} ·{' '}
-          {t('Excluded cycles')}: {formatNumber(window.excluded_cycles, locale)}
-        </p>
-        <p>
-          {t('Observation gaps (seconds)')}:{' '}
-          {formatNumber(window.gap_seconds, locale)} ·{' '}
-          {t('Invalid observations')}:{' '}
-          {formatNumber(window.invalid_samples, locale)}
-        </p>
-        <p>
-          {t('Coverage starts')}:{' '}
-          {ledgerTime(data.summary.coverage_start, locale)} ·{' '}
-          {t('Evaluated cycles')}:{' '}
-          {formatNumber(window.evaluated_cycles, locale)}
-        </p>
-      </div>
       <Card role='region' aria-label={t('Five-hour quota status')}>
         <CardHeader>
           <CardTitle>{t('Five-hour quota status')}</CardTitle>
@@ -191,7 +113,7 @@ export function QuotaOverview(props: { filters: Filters }) {
           <p className='text-2xl font-semibold tabular-nums'>
             {fiveHour?.used_basis_points == null
               ? '—'
-              : `${formatNumber(fiveHour.used_basis_points / 100, locale)}%`}
+              : `${formatNumber((10000 - fiveHour.used_basis_points) / 100, locale)}%`}
           </p>
           <p>
             {t('Expected reset')}: {ledgerTime(fiveHour?.reset_at ?? 0, locale)}{' '}
@@ -283,6 +205,71 @@ export function QuotaOverview(props: { filters: Filters }) {
             </p>
           </CardContent>
         </Card>
+      </div>
+      <div className='grid min-w-0 items-start gap-4 lg:grid-cols-2'>
+        <CycleBreakdown filters={props.filters} weekly={window} />
+        <Collapsible className='text-muted-foreground space-y-2 rounded-lg border p-4 text-xs'>
+          <CollapsibleTrigger className='text-foreground text-sm'>
+            {t('Accounting rules and collection details')}
+          </CollapsibleTrigger>
+          <CollapsibleContent className='space-y-2 pt-3'>
+            <p>
+              {t(
+                'One unit equals 100% of a seven-day quota. Initial usage is a baseline; five-hour quota is status only.'
+              )}
+            </p>
+            <p>
+              {t(
+                'Increases count after each successful observation, not only at resets. This page refreshes every minute; collection follows the configured interval.'
+              )}
+            </p>
+            <p>
+              {t(
+                'Four weekly units are a reference, not the actual monthly allowance or unused quota. Unused estimates may overstate waste between observations.'
+              )}
+            </p>
+            <p>
+              {t('Last observation')}:{' '}
+              {ledgerTime(current?.fetched_at ?? 0, locale)} ·{' '}
+              {t('Expected reset')}:{' '}
+              {ledgerTime(current?.reset_at ?? 0, locale)} (Asia/Shanghai)
+            </p>
+            {(!data.collection_enabled ||
+              current?.stale ||
+              !data.subject.enabled ||
+              data.subject.error_code) && (
+              <p className='text-amber-600'>
+                {t('Collection is paused, stale or incomplete')}
+                {data.subject.error_code && ` · ${data.subject.error_code}`}
+              </p>
+            )}
+            {current?.quality_code && (
+              <p>
+                {t('Unknown observation')}: {current.quality_code}
+              </p>
+            )}
+            <p>
+              {t('Pending events')}:{' '}
+              {formatNumber(window.pending_events, locale)} ·{' '}
+              {t('Partial cycles')}:{' '}
+              {formatNumber(window.partial_cycles, locale)} ·{' '}
+              {t('Excluded cycles')}:{' '}
+              {formatNumber(window.excluded_cycles, locale)}
+            </p>
+            <p>
+              {t('Observation gaps (seconds)')}:{' '}
+              {formatNumber(window.gap_seconds, locale)} ·{' '}
+              {t('Invalid observations')}:{' '}
+              {formatNumber(window.invalid_samples, locale)}
+            </p>
+            <p>
+              {t('Coverage starts')}:{' '}
+              {ledgerTime(data.summary.coverage_start, locale)} ·{' '}
+              {t('Evaluated cycles')}:{' '}
+              {formatNumber(window.evaluated_cycles, locale)}
+            </p>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
     </div>
   )

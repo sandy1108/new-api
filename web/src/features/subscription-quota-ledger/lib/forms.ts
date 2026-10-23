@@ -48,3 +48,16 @@ export function formatWeeklyUnits(
     value
   )
 }
+
+// 每4份周额度作为一个月的比较基准，不代表官方固定月配额。
+// 整倍数停留在上一段的100%，避免达到100%或200%时进度条突然清空。
+export function monthlyQuotaProgress(units: number) {
+  if (!Number.isFinite(units) || units < 0) return null
+  const segment = Math.max(1, Math.ceil(units / 4))
+  return {
+    percent: units * 25,
+    segment,
+    progress: (units / 4 - (segment - 1)) * 100,
+    completed: Math.floor(units / 4),
+  }
+}

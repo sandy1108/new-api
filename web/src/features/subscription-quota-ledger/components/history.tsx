@@ -37,10 +37,12 @@ export function QuotaHistory(props: { filters: Filters }) {
   const cycles = useQuery({
     queryKey: [...quotaKey, 'cycles', props.filters, page],
     queryFn: () => getCycles(props.filters, page),
+    refetchInterval: 60_000,
   })
   const events = useQuery({
     queryKey: [...quotaKey, 'events', props.filters, page],
     queryFn: () => getEvents(props.filters, page),
+    refetchInterval: 60_000,
   })
   if (cycles.isPending || events.isPending) return <LoadingState />
   if (cycles.isError || events.isError) {
@@ -82,7 +84,7 @@ export function QuotaHistory(props: { filters: Filters }) {
               },
               {
                 id: 'unused',
-                header: t('Estimated unused weekly units'),
+                header: t('Quota left unused at this reset (units)'),
                 cell: (row) =>
                   row.partial ||
                   row.has_gap ||
@@ -100,6 +102,7 @@ export function QuotaHistory(props: { filters: Filters }) {
                 header: t('Status'),
                 cell: (row) => (
                   <span>
+                    {!row.ended_at && t('Current cycle is still in progress')}
                     {row.partial && `${t('Partial cycles')} · `}
                     {row.has_gap && `${t('Observation gap')} · `}
                     {row.has_correction && `${t('Plan correction')} · `}
