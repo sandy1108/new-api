@@ -2,6 +2,11 @@
 
 DO NOT send optional commentary
 
+## PONG私有项目流程入口
+
+New API私有改造开始、阶段汇报及收尾前，必须读取Obsidian知识库`Agent记录区/编码/项目/NewAPI自定义开发/2026-10-24-编码-New-API需求开发与发布闭环准则.md`（`AI-Memory-Knowledge`），具体操作继续复用现有`docs/development/git-branch-and-release-workflow.md`及其专项链接，不另建重复规则。
+按该准则主动汇报剩余步骤、插话后恢复未完任务；生产验收后仍须检查上线日志、知识库、提交、主干合并与远端推送读回，无法访问准则或存在遗漏时明确说明，不宣称需求已闭环。
+
 ## Overview
 
 This is an AI API gateway/proxy built with Go. It aggregates 40+ upstream AI providers (OpenAI, Claude, Gemini, Azure, AWS Bedrock, etc.) behind a unified API, with user management, billing, rate limiting, and an admin dashboard.
