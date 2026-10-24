@@ -1,5 +1,16 @@
 # New API 构建与发布日志
 
+## 2026-10-24：官方rc.46开发同步（验证中，未生产发布）
+
+- 用户批准STANDARD单Agent同步固定rc.46，不包含其后main的15个提交；生产配置、容器及数据不在写入范围，尚未授权个人主干合并或推送。
+- 基线`c37e5b3e3c89cd645b294fba11f920f27509e502`，回退分支`backup/pre-sync-20261024-rc46`；开发分支`upgrade/upstream-rc46-20261024`合并官方`7d8b91268dab69d7150f345c448b5e250163146a`，19提交84文件无文本冲突。源码合并提交`c285b5055aff5cf4a79fb40c5d6a7842fae2ab45`，PONG版本分配`v1.0.0-rc.46+pong.20261024.01`；保留私有聚合/成本/凭据/刷新协调/账本/导航，既有无关未跟踪文件不动。
+- 初次开发构建01因命令漏传`TARGETARCH=arm64`，在临时Go编译容器中主动停止，未部署；编号不复用。镜像`new-api:dev-20261024-02-gc285b5055`改为显式`TARGETOS=linux/TARGETARCH=arm64`，从提交归档经完整Dockerfile重新构建，两核/2800MiB串行，不重启Docker；源码和证据在Git外`rc46-sync-20261024-01/`，不以已分配标签冒称构建或部署成功。
+- 永久测试PG、应用data、Compose在线备份已校验dump目录及tar可读，SHA保存在`backup-manifest.json`；切前25项认证态/API/HTTP检查通过，脚本自建会话注销，无主动上游额度查询。在线备份不保证跨资源事务一致性。生产仍运行20261023.01的rc45镜像。
+- 迁移待验证：`quota_data`新增`cache_read_tokens`/`cache_creation_tokens`默认0，审计日志增加`(created_at,event_id)`组合索引；须完成SQLite/MySQL/PostgreSQL新库、rc45旧库升级、二次启动及旧数据/私表约束保留。前后端测试、永久测试切换及用户验收尚未完成，结果随后追加。
+- 构建02在`go mod download`解压依赖时因Docker虚拟磁盘满失败（`No space left on device`），没有生成可用候选。Docker内约58.4GiB已满；宿主仍有约41GiB，两者不能混为一谈。本轮事先检查了内存但漏查虚拟磁盘余量，应在后续构建前同时检查磁盘、inode和可用空间。
+- 磁盘满导致永久测试PG在北京时间12:50左右checkpoint PANIC，并因WAL恢复无法扩展文件而退出；不是主动重启，也不是OOM。生产PG/Redis及New API仍运行、重启0，外部HTTPS状态成功且版本仍为rc45。暂停构建和迁移，不把测试应用进程running视为测试服务正常。
+- 已精确移除本轮两个失败临时构建容器`8b80e4510d59`/`6569504c57a0`及本轮一次性依赖卷`new-api-rc46-webtest-20261024-01`，仅含可重建内容；未删业务卷/镜像/备份，未重启Docker或任何服务。清理后Docker仅约735MiB可用，不足以安全继续。待用户批准指定历史New API构建中间镜像清理及测试PG启动，先恢复测试数据库再续测；不能宣称同步验证完成。
+
 ## 2026-10-08：rc.41生产发布与验收收尾
 
 - 豆包完成正式候选`new-api:v1.0.0-rc.41-20261004-01-g495aeffd0`生产切换，未回滚。Codex现场复核候选摘要匹配、running+healthy、restart=0，Compose仅镜像一行变化，PG/Redis容器及启动时间保持，新鲜备份4项校验和匹配；状态接口成功且加密登录开关true。
