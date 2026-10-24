@@ -1218,3 +1218,12 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 切换前新鲜备份位于交接包`evidence/pre-cutover-kkDVRK/`：10份文件校验通过；PostgreSQL dump 6,894,232字节，SHA-256 `e45fe7a6985e59f81cad8bffff247bbd294d8faeb4b96a941a1084123d2c1f88`。这是在线备份，不代表跨资源事务一致性，也未进行恢复演练。回滚镜像保留为`new-api:v1.0.0-rc.45-20261022-01-g457bb66fe`（ID `sha256:8df0e2b23f6856e35f5225e323e69ef8a1b81aad7bebaf19f20e6deb20eee983`）；本次无回滚。
 - 执行反馈记录切换于北京时间20:59:54。切换后外部HTTPS及容器内状态接口成功；真实Codex `/v1/responses`自然流量返回200（执行Agent观测），不等同于本轮主动进行的逐帧SSE/结算专项。未主动请求上游额度、刷新OAuth或调用付费模型。
 - 本次相关功能源码提交`aa43325e5163a07a9b40120cc0b826c4fc317c10`、此前发布文档提交`8f7bbf7b25df5c1caaa52ab7797fb8dec0b65b24`已在`personal/main`历史；功能分支`feature/usage-summary-costs`已包含于个人主分支。新增本段为最终生产日志，随后单独提交并快进同步到`personal/main`；提交/推送状态以本轮收尾提交及远端读回为准。仅推送`myfork`，不推送官方`origin`。
+
+### 2026-10-24：rc46生产发布、独立验收与收尾
+
+- 豆包获用户停机二次确认后只切应用，生产22:59:59启动候选，未回滚。版本`v1.0.0-rc.46+pong.20261024.01`，镜像`new-api:v1.0.0-rc.46-pong.20261024.01-gc285b5055`，ID `sha256:7a9cd856b41c430f9e205048fe723482bbaa22089048f22cfe7986385d717a96`；与测试同一镜像，未重编。构建源码`c285b5055`，后续仅docs差异。
+- 用户确认生产使用正常。Codex独立核验镜像/版本、HTTPS、加密登录、Compose仅镜像行、容器身份/配置/挂载、业务计数、账本配置/历史快照/人工决定保留通过；缓存两列和审计索引存在。交接包`new-api-pre-switch-20261024-rc46`最终completed；用户页面验收不记为Codex亲测。
+- 切前新鲜备份`evidence/pre-cutover-LMBB1H/`共11文件SHA/可读性通过；PG dump7472408字节，SHA-256 `86fb1d2c5388c89fc2f9076849bba622d14e014959ed029eefbcdf2d7b1d6077`。在线备份非跨资源事务一致，未生产恢复演练；rc45回滚镜像保留。
+- 23:03发生外部Docker重启，用户明确确认为自行调整内存至3GB触发。生产PG/Redis启动时间变化、测试三容器停止，原严格运行边界检查失败属实并保留；限定的数据/配置/迁移复核另存证据，不覆盖原报告。应用因PG恢复尚未就绪失败5次，23:03:35恢复运行，最终healthy/重启仍5/非OOM，最近启动后无致命错误。没有把原边界核验失败改称全项通过。
+- 永久测试容器和数据保留但当前停止，本轮未擅自启动。测试构建stage标签与依赖卷待另行精确清理，不全局prune；生产、回滚和正式测试镜像保留。付费中转完整SSE结算、真实客户端凭据主动查询及长期重置未重测，不冒称已验证；真实Responses自然200由豆包观察。时间框内部值展示及官方既有lint欠项保留。
+- 私有API契约/命名未变，私有API与Postman文档无需修改。上线记录及Obsidian补齐后单独docs提交，快进personal/main并同步myfork读回；不提交私人Compose或原有无关未跟踪文件，不推origin、不重建镜像。实际尾部SHA保存于Git外收尾证据及知识库。
