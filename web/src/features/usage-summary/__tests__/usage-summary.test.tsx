@@ -409,6 +409,14 @@ function mockSummaryQuery(overrides: Record<string, unknown> = {}): void {
 }
 
 describe('usage summary page states', () => {
+  test('reserves a full row for the page title on mobile so compact filters cannot squeeze it', () => {
+    mockSummaryQuery({ isLoading: true })
+    render(<UsageSummary />)
+    expect(
+      screen.getByRole('heading', { name: 'Token Usage' }).parentElement
+    ).toHaveClass('max-sm:basis-full')
+  })
+
   test('switches the detail context when any API token row is clicked', () => {
     mockSummaryQuery({ data: summaryDataWithMultipleTokens })
     render(<UsageSummary />)

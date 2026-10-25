@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ErrorState } from '@/components/error-state'
@@ -90,6 +90,8 @@ function UsageSummaryLoading() {
 }
 
 export function UsageSummary() {
+  const layoutRef = useRef<HTMLDivElement>(null)
+  const titleRef = useRef<HTMLSpanElement>(null)
   const { t } = useTranslation()
   const [rangeId, setRangeId] = useState<UsageSummaryRangeId>(
     DEFAULT_USAGE_SUMMARY_RANGE
@@ -245,27 +247,33 @@ export function UsageSummary() {
   }
 
   return (
-    <SectionPageLayout fixedContent>
-      <SectionPageLayout.Title>{t('Token Usage')}</SectionPageLayout.Title>
-      <SectionPageLayout.Actions>
-        <UsageSummaryFilters
-          rangeId={rangeId}
-          scope={query.scope}
-          canManageScope={query.canManageScope}
-          refreshing={query.isFetching && !query.isLoading}
-          onRangeChange={handleRangeChange}
-          onScopeChange={handleScopeChange}
-          onRefresh={() => void query.refetch()}
-        />
-      </SectionPageLayout.Actions>
-      <SectionPageLayout.Content>
-        <div
-          className='flex h-full min-h-0 flex-col gap-4 overflow-auto p-0.5 sm:p-1'
-          aria-busy={query.isFetching}
-        >
-          {content}
-        </div>
-      </SectionPageLayout.Content>
-    </SectionPageLayout>
+    <div ref={layoutRef} className='flex min-h-0 min-w-0 flex-1 flex-col'>
+      <SectionPageLayout fixedContent stackActionsOnMobile>
+        <SectionPageLayout.Title>
+          <span ref={titleRef}>{t('Token Usage')}</span>
+        </SectionPageLayout.Title>
+        <SectionPageLayout.Actions>
+          <UsageSummaryFilters
+            layoutRef={layoutRef}
+            titleRef={titleRef}
+            rangeId={rangeId}
+            scope={query.scope}
+            canManageScope={query.canManageScope}
+            refreshing={query.isFetching && !query.isLoading}
+            onRangeChange={handleRangeChange}
+            onScopeChange={handleScopeChange}
+            onRefresh={() => void query.refetch()}
+          />
+        </SectionPageLayout.Actions>
+        <SectionPageLayout.Content>
+          <div
+            className='flex h-full min-h-0 flex-col gap-4 overflow-auto p-0.5 sm:p-1'
+            aria-busy={query.isFetching}
+          >
+            {content}
+          </div>
+        </SectionPageLayout.Content>
+      </SectionPageLayout>
+    </div>
   )
 }
