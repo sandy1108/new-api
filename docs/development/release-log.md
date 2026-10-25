@@ -1256,3 +1256,12 @@ new-api:<upstream-version>-<YYYYMMDD>-<NN>-g<short-commit>
 - 交接包`new-api-pre-switch-20261025-range-tabs`准备完毕，状态pending，固定候选/回滚与六容器边界，包含来源校验、前检、备份/校验、上线/回退验证脚本及待填写反馈。生产前检通过；准备备份`evidence/prepare-1CtkHU/`共11文件校验与可读性通过，PG dump7674447字节、SHA-256 `799646610a2499a020085a00d30a28b2d35f2c83f10d24d32a3d366cb8144926`；在线非跨资源事务一致，未恢复演练，执行方仍须pre-cutover新鲜备份。
 - 本次无后端/依赖/API/schema增量，原有AutoMigrate仍随启动执行。回滚保留rc46正式20261024.01镜像ID `sha256:7a9cd856b41c430f9e205048fe723482bbaa22089048f22cfe7986385d717a96`，只切应用镜像，不回灌数据库。生产依旧旧镜像healthy/重启5/非OOM，永久测试03 running/重启0，无Docker重启。豆包须在实际切应用前取得停机二次确认；新包不预写completed。
 - 用户要求推进生产，视为本轮测试阶段放行；生产认证态UI与独立验收、实际上线日志和远端推送仍待后续，不宣称需求闭环。API/Postman契约未变无需更新，本轮不主动请求付费模型或上游额度。
+
+
+### 2026-10-25：时间筛选03生产切换、独立验收及交接完成
+
+- 豆包在用户停机二次确认后仅重建生产应用，启动于北京时间16:28:04，未回滚；运行版本`v1.0.0-rc.46+pong.20261025.03`，镜像`new-api:v1.0.0-rc.46-pong.20261025.03-g6120ac6c8`，ID `sha256:1ba8068951d594e487894945e90e83f5d5f7a7022129a6ad0f264dcfca654f6c`，与永久测试同一镜像，无重新构建。
+- Codex独立核验PASS：生产running/healthy、重启0、无OOM，外部HTTPS及容器内版本相同、加密登录开启、近期无致命启动日志。生产Compose相对切前快照仅镜像行，环境/挂载保留，PG/Redis及3永久测试容器身份/启动不变；业务计数用户/令牌/渠道/凭据/grant/主体为1/10/8/1/1/1，账本配置/旧快照/人工决定及旧Token退役值保留，rc46既有schema保持，无新增数据库变更。
+- 切前新鲜备份位于交接包`new-api-pre-switch-20261025-range-tabs/evidence/pre-cutover-i9fORX/`，11文件校验与可读性通过；PG dump7680416字节，SHA-256 `43ccabd10c342fa393428fa0db9105892127fec405cb7f3c15c69f577fecaa81`。在线备份非跨资源事务一致，未恢复演练；旧rc46正式镜像保留。本轮01/02镜像先前按授权精确删除，未额外清理卷/缓存/镜像。
+- 用户确认“可以了…标记为complete”，作为生产页面验收放行；豆包原blocked为缺页面验收历史，追加最终补记并将元数据改completed。Codex独立证据`codex-acceptance-verification.json`与豆包原报告分开保存，脚本authenticated_ui_verified=false如实保留，不把用户验收写成Codex逐项浏览器亲测。4条自然Responses 200由豆包观测，不等同主动付费完整SSE/结算、真实客户端凭据额度查询、长期重置或会话到期专项；本轮没有主动上游请求。
+- 功能`6120ac6c8`及准备日志`8da7e8895`已入personal/main，本段为授权范围内第6文件release-log的尾部docs提交，随后快进个人主干；远端未推送、未授权，仍列待完成，不宣称需求全部闭环。API/Postman契约未变无需修改，知识库与交接状态同步；生产私人Compose及原无关文件保持原样。豆包早期读取尚在准备中的包时遇到缺元数据，后完整发包后正常执行，保留反馈历史不掩盖。
