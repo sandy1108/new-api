@@ -7,6 +7,16 @@ func init() {
 	accessTokenRouteRules["GET /api/log/self/usage-summary"] = accessTokenScopeRule("usage:read")
 
 	for _, key := range []string{
+		"GET /api/pong-reports/capabilities",
+		"GET /api/pong-reports/usage-summary",
+		"GET /api/pong-reports/subscription/subjects",
+		"GET /api/pong-reports/subscription/summary",
+		"GET /api/pong-reports/subscription/cycles",
+		"GET /api/pong-reports/subscription/trend",
+		"GET /api/pong-reports/subscription/events",
+		"GET /api/pong-report-access/users",
+		"GET /api/pong-report-access/users/:id",
+		"PUT /api/pong-report-access/users/:id",
 		"GET /api/private-quota/settings",
 		"PUT /api/private-quota/settings",
 		"GET /api/private-quota/channels",

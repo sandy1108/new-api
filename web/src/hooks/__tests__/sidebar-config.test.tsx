@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, renderHook } from '@testing-library/react'
+import { cleanup, renderHook, waitFor } from '@testing-library/react'
 import i18next from 'i18next'
 import type { ReactNode } from 'react'
 import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -33,6 +33,15 @@ import { useAuthStore } from '@/stores/auth-store'
 
 import { useSidebarConfig } from '../use-sidebar-config'
 import { useSidebarData } from '../use-sidebar-data'
+
+vi.mock('@/features/report-access/api', () => ({
+  getReportCapabilities: vi.fn(async () => ({
+    usage_read_all: (useAuthStore.getState().auth.user?.role ?? 0) >= 10,
+    subscription_read_all: useAuthStore.getState().auth.user?.role === 100,
+    can_manage_grants: useAuthStore.getState().auth.user?.role === 100,
+    revision: 'sidebar-test',
+  })),
+}))
 
 beforeEach(() => {
   vi.stubGlobal('localStorage', {
@@ -185,8 +194,28 @@ describe('audit log sidebar entry', () => {
 })
 
 describe('private subscription quota navigation', () => {
-  it('console links to the ledger while the custom system group links only to settings', () => {
-    const { result } = renderHook(useSidebarData)
+  it('console links to the ledger while the custom system group links only to settings', async () => {
+    useAuthStore
+      .getState()
+      .auth.setUser({ id: 1, username: 'root', role: ROLE.SUPER_ADMIN })
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    function Wrapper(props: { children: ReactNode }) {
+      return (
+        <QueryClientProvider client={client}>
+          {props.children}
+        </QueryClientProvider>
+      )
+    }
+    const { result, unmount } = renderHook(useSidebarData, { wrapper: Wrapper })
+    await waitFor(() =>
+      expect(
+        result.current.navGroups
+          .flatMap((group) => group.items)
+          .some((item) => item.url === '/subscription-quota')
+      ).toBe(true)
+    )
     const general = result.current.navGroups.find(
       (group) => group.id === 'general'
     )
@@ -196,7 +225,6 @@ describe('private subscription quota navigation', () => {
     assert(ledger, 'Subscription quota ledger navigation must exist')
     expect(ledger).toMatchObject({
       url: '/subscription-quota',
-      requiredRole: ROLE.SUPER_ADMIN,
     })
     expect(checkIsActive('/subscription-quota', ledger)).toBe(true)
     expect(checkIsActive('/system-settings/subscription-quota', ledger)).toBe(
@@ -209,11 +237,14 @@ describe('private subscription quota navigation', () => {
       (group) => group.id === 'pong-api-settings'
     )
     expect(custom?.items.map((item) => item.title)).toEqual([
+      'Report access grants',
       'Client access credentials',
       'Subscription quota ledger settings',
     ])
-    expect(custom?.items[1]).toMatchObject({
+    expect(custom?.items[2]).toMatchObject({
       url: '/system-settings/subscription-quota',
     })
+    unmount()
+    client.clear()
   })
 })

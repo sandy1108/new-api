@@ -1,16 +1,29 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, render, screen } from '@testing-library/react'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import { api } from '@/lib/api'
+import { useAuthStore } from '@/stores/auth-store'
 
 import { QuotaHistory } from '../components/history'
 import { QuotaMetrics } from '../components/quota-metrics'
 import { monthlyQuotaProgress } from '../lib/forms'
 import type { Summary } from '../types'
 
+vi.mock('@/features/report-access/api', () => ({
+  getReportCapabilities: vi.fn(async () => ({
+    usage_read_all: true,
+    subscription_read_all: true,
+    can_manage_grants: true,
+    revision: 'root-test',
+  })),
+}))
+beforeEach(() =>
+  useAuthStore.getState().auth.setUser({ id: 1, username: 'root', role: 100 })
+)
 afterEach(() => {
   cleanup()
+  useAuthStore.getState().auth.reset()
   vi.useRealTimers()
   vi.restoreAllMocks()
 })

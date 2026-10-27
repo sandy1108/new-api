@@ -29,6 +29,8 @@ import type {
 export interface GetUsageSummaryParams {
   scope: UsageSummaryScope
   range: UsageSummaryRange
+  observer?: boolean
+  signal?: AbortSignal
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -125,12 +127,13 @@ function parseUsageSummaryResponse(value: unknown): UsageSummaryData {
 export async function getUsageSummary(
   params: GetUsageSummaryParams
 ): Promise<UsageSummaryData> {
-  const endpoint =
-    params.scope === 'all'
-      ? '/api/log/usage-summary'
-      : '/api/log/self/usage-summary'
+  let endpoint = '/api/log/self/usage-summary'
+  if (params.observer) endpoint = '/api/pong-reports/usage-summary'
+  else if (params.scope === 'all') endpoint = '/api/log/usage-summary'
   const response = await api.get<UsageSummaryEnvelope>(endpoint, {
+    signal: params.signal,
     params: {
+      ...(params.observer ? { scope: params.scope } : {}),
       start_timestamp: params.range.startTimestamp,
       end_timestamp: params.range.endTimestamp,
       include_trend: true,

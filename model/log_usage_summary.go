@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -67,10 +68,15 @@ var errUsageSummaryQuery = errors.New("查询统计数据失败")
 // GetUsageSummary 在日志数据库中直接完成消费日志聚合。
 // 不使用分页，避免客户端为统计数据重复执行 COUNT/OFFSET 查询。
 func GetUsageSummary(filters UsageSummaryFilters) (UsageSummary, error) {
+	return GetUsageSummaryContext(context.Background(), filters)
+}
+
+// GetUsageSummaryContext让私有报表可以取消/限时查询，旧接口契约不变。
+func GetUsageSummaryContext(ctx context.Context, filters UsageSummaryFilters) (UsageSummary, error) {
 	var summary UsageSummary
 	items := make([]UsageSummaryItem, 0)
 
-	tx := LOG_DB.Table("logs").Select(`
+	tx := LOG_DB.WithContext(ctx).Table("logs").Select(`
 		user_id,
 		username,
 		token_id,
@@ -93,7 +99,7 @@ func GetUsageSummary(filters UsageSummaryFilters) (UsageSummary, error) {
 		return summary, errUsageSummaryQuery
 	}
 
-	if err := fillUsageSummaryChannelNames(items); err != nil {
+	if err := fillUsageSummaryChannelNames(ctx, items); err != nil {
 		return summary, err
 	}
 	for i := range items {
@@ -111,7 +117,7 @@ func GetUsageSummary(filters UsageSummaryFilters) (UsageSummary, error) {
 	summary.Items = items
 
 	if filters.IncludeTrend {
-		trend, err := getUsageSummaryTrend(filters)
+		trend, err := getUsageSummaryTrend(ctx, filters)
 		if err != nil {
 			return summary, err
 		}
@@ -170,10 +176,10 @@ func usageSummaryDayBucketExpr() string {
 	}
 }
 
-func getUsageSummaryTrend(filters UsageSummaryFilters) ([]UsageSummaryTrendPoint, error) {
+func getUsageSummaryTrend(ctx context.Context, filters UsageSummaryFilters) ([]UsageSummaryTrendPoint, error) {
 	bucketExpr := usageSummaryDayBucketExpr()
 	rows := make([]UsageSummaryTrendPoint, 0)
-	tx := LOG_DB.Table("logs").Select(fmt.Sprintf(`
+	tx := LOG_DB.WithContext(ctx).Table("logs").Select(fmt.Sprintf(`
 		%s AS bucket,
 		COUNT(*) AS requests,
 		COALESCE(SUM(prompt_tokens), 0) AS input_tokens,
@@ -220,7 +226,7 @@ func usageSummaryItemLess(left, right UsageSummaryItem) bool {
 	return false
 }
 
-func fillUsageSummaryChannelNames(items []UsageSummaryItem) error {
+func fillUsageSummaryChannelNames(ctx context.Context, items []UsageSummaryItem) error {
 	channelIDs := make([]int, 0)
 	seen := make(map[int]struct{})
 	for _, item := range items {

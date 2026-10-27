@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -10,8 +9,9 @@ import { LoadingState } from '@/components/loading-state'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useReportAccess, useLedgerRead } from '@/features/report-access/hooks'
 
-import { getSubjects, quotaKey } from './api'
+import { getReportSubjects } from './api'
 import { QuotaHistory } from './components/history'
 import { QuotaOverview } from './components/overview'
 import { QuotaSelect } from './components/quota-select'
@@ -26,11 +26,10 @@ export function SubscriptionQuotaLedger(props: {
   const [subjectPage, setSubjectPage] = useState(1)
   const [selectedSubject, setSelectedSubject] = useState(0)
   const [month, setMonth] = useState(beijingMonth)
-  const subjects = useQuery({
-    queryKey: [...quotaKey, 'subjects', subjectPage],
-    queryFn: () => getSubjects(subjectPage),
-    refetchInterval: 60_000,
-  })
+  const access = useReportAccess()
+  const subjects = useLedgerRead(['subjects', subjectPage], (signal) =>
+    getReportSubjects(subjectPage, signal)
+  )
   // 周额度是唯一累计单位；5小时仅在概览中展示状态，不提供份数切换。
   // 不使用placeholderData；切账号/月时先展示加载，绝不沿用另一账号结果。
   const subject =
@@ -46,15 +45,17 @@ export function SubscriptionQuotaLedger(props: {
       <SectionPageLayout.Title>
         {t('Subscription quota ledger')}
       </SectionPageLayout.Title>
-      <SectionPageLayout.Actions>
-        <Button
-          role='link'
-          variant='outline'
-          render={<Link to='/system-settings/subscription-quota' />}
-        >
-          {t('Subscription quota ledger settings')}
-        </Button>
-      </SectionPageLayout.Actions>
+      {access.canManage && (
+        <SectionPageLayout.Actions>
+          <Button
+            role='link'
+            variant='outline'
+            render={<Link to='/system-settings/subscription-quota' />}
+          >
+            {t('Subscription quota ledger settings')}
+          </Button>
+        </SectionPageLayout.Actions>
+      )}
       <SectionPageLayout.Content>
         <Tabs
           value={props.view}
@@ -69,7 +70,11 @@ export function SubscriptionQuotaLedger(props: {
             <TabsTrigger value='overview'>{t('Overview')}</TabsTrigger>
             <TabsTrigger value='history'>{t('Cycles and events')}</TabsTrigger>
           </TabsList>
-          {subjects.isPending && <LoadingState />}
+          {access.isPending && <LoadingState />}
+          {!access.isPending && !access.canReadLedger && (
+            <ErrorState onRetry={() => void access.refetch()} />
+          )}
+          {access.canReadLedger && subjects.isPending && <LoadingState />}
           {subjects.isError && (
             <ErrorState onRetry={() => void subjects.refetch()} />
           )}
@@ -79,12 +84,16 @@ export function SubscriptionQuotaLedger(props: {
                 <EmptyState
                   title={t('No monitored subscriptions')}
                   action={
-                    <Button
-                      role='link'
-                      render={<Link to='/system-settings/subscription-quota' />}
-                    >
-                      {t('Subscription quota ledger settings')}
-                    </Button>
+                    access.canManage ? (
+                      <Button
+                        role='link'
+                        render={
+                          <Link to='/system-settings/subscription-quota' />
+                        }
+                      >
+                        {t('Subscription quota ledger settings')}
+                      </Button>
+                    ) : undefined
                   }
                 />
               )}

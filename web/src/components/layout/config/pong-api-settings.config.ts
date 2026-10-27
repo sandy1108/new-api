@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next'
-import { KeyRound, ChartNoAxesCombined } from 'lucide-react'
+import { KeyRound, ChartNoAxesCombined, ShieldCheck } from 'lucide-react'
 
 import { ROLE } from '@/lib/roles'
 
@@ -13,6 +13,12 @@ export function pongAPISettingsGroup(t: TFunction, role: number): NavGroup[] {
       id: 'pong-api-settings',
       title: t('PongAPI custom settings'),
       items: [
+        {
+          title: t('Report access grants'),
+          url: '/system-settings/report-access',
+          icon: ShieldCheck,
+          requiredRole: ROLE.SUPER_ADMIN,
+        },
         {
           title: t('Client access credentials'),
           url: '/system-settings/client-access',

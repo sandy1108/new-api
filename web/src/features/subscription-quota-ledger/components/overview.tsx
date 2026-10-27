@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
 
@@ -17,10 +16,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import { useLedgerRead } from '@/features/report-access/hooks'
 import { toIntlLocale } from '@/i18n/languages'
 import { formatNumber } from '@/lib/format'
 
-import { getSummary, getTrend, quotaKey } from '../api'
+import { getSummary, getTrend } from '../api'
 import { formatWeeklyUnits, ledgerTime } from '../lib/forms'
 import type { Filters } from '../types'
 import { CycleBreakdown } from './cycle-breakdown'
@@ -29,16 +29,12 @@ import { QuotaMetrics } from './quota-metrics'
 export function QuotaOverview(props: { filters: Filters }) {
   const { t, i18n } = useTranslation()
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
-  const summary = useQuery({
-    queryKey: [...quotaKey, 'summary', props.filters],
-    queryFn: () => getSummary(props.filters),
-    refetchInterval: 60_000,
-  })
-  const trend = useQuery({
-    queryKey: [...quotaKey, 'trend', props.filters],
-    queryFn: () => getTrend(props.filters),
-    refetchInterval: 60_000,
-  })
+  const summary = useLedgerRead(['summary', props.filters], (signal) =>
+    getSummary(props.filters, signal)
+  )
+  const trend = useLedgerRead(['trend', props.filters], (signal) =>
+    getTrend(props.filters, signal)
+  )
   if (summary.isPending || trend.isPending) return <LoadingState />
   if (summary.isError || trend.isError) {
     return (
@@ -50,6 +46,7 @@ export function QuotaOverview(props: { filters: Filters }) {
       />
     )
   }
+  if (!summary.data || !trend.data) return <ErrorState />
   const data = summary.data
   const window = data.summary.seven_day
   const current = data.current['604800']

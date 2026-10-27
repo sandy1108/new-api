@@ -10,11 +10,13 @@ import type {
   QuotaEvent,
   Settings,
   Subject,
+  ReadSubject,
   Summary,
   Trend,
 } from './types'
 
 const base = '/api/private-quota'
+const reportBase = '/api/pong-reports/subscription'
 const writeConfig = { headers: { 'X-PongAPI-Request': '1' } }
 export const quotaKey = ['private-quota'] as const
 
@@ -32,6 +34,19 @@ export async function getSubjects(page: number): Promise<Page<Subject>> {
   return requireServerSuccess(
     (await api.get(`${base}/subjects`, { params: { page, page_size: 100 } }))
       .data
+  ).data
+}
+export async function getReportSubjects(
+  page: number,
+  signal?: AbortSignal
+): Promise<Page<ReadSubject>> {
+  return requireServerSuccess(
+    (
+      await api.get(`${reportBase}/subjects`, {
+        params: { page, page_size: 100 },
+        signal,
+      })
+    ).data
   ).data
 }
 export async function getChannels(page: number): Promise<Page<Channel>> {
@@ -52,30 +67,48 @@ export async function saveSubject(input: {
     : await api.post(`${base}/subjects`, input, writeConfig)
   return requireServerSuccess(response.data).data
 }
-export async function getSummary(filters: Filters): Promise<Summary> {
+export async function getSummary(
+  filters: Filters,
+  signal?: AbortSignal
+): Promise<Summary> {
   return requireServerSuccess(
-    (await api.get(`${base}/summary`, { params: filters })).data
+    (await api.get(`${reportBase}/summary`, { params: filters, signal })).data
   ).data
 }
-export async function getTrend(filters: Filters): Promise<Page<Trend>> {
+export async function getTrend(
+  filters: Filters,
+  signal?: AbortSignal
+): Promise<Page<Trend>> {
   return requireServerSuccess(
-    (await api.get(`${base}/trend`, { params: filters })).data
+    (await api.get(`${reportBase}/trend`, { params: filters, signal })).data
   ).data
 }
 export async function getCycles(
   filters: Filters,
-  page: number
+  page: number,
+  signal?: AbortSignal
 ): Promise<Page<Cycle>> {
   return requireServerSuccess(
-    (await api.get(`${base}/cycles`, { params: { ...filters, page } })).data
+    (
+      await api.get(`${reportBase}/cycles`, {
+        params: { ...filters, page },
+        signal,
+      })
+    ).data
   ).data
 }
 export async function getEvents(
   filters: Filters,
-  page: number
+  page: number,
+  signal?: AbortSignal
 ): Promise<Page<QuotaEvent>> {
   return requireServerSuccess(
-    (await api.get(`${base}/events`, { params: { ...filters, page } })).data
+    (
+      await api.get(`${reportBase}/events`, {
+        params: { ...filters, page },
+        signal,
+      })
+    ).data
   ).data
 }
 export async function decideEvent(input: {

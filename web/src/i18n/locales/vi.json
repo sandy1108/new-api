@@ -2872,7 +2872,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "Các Dự Án Liên Quan",
     "footer.defaultCopyright": "Bản quyền được bảo lưu.",
-    "footer.new\u0061pi.projectAttributionSuffix": "Bản quyền được bảo lưu. Được thiết kế và phát triển bởi các cộng tác viên dự án.",
+    "footer.newapi.projectAttributionSuffix": "Bản quyền được bảo lưu. Được thiết kế và phát triển bởi các cộng tác viên dự án.",
     "For advanced custom channels this applies only to /v1/responses routes without protocol conversion.": "Với kênh tùy chỉnh nâng cao, thiết lập này chỉ áp dụng cho các route /v1/responses không chuyển đổi giao thức.",
     "GitHub ID is empty!": "ID GitHub trống!",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "Đối với các kênh được thêm sau ngày 10 tháng 5 năm 2025, không cần loại bỏ \".\" khỏi tên mô hình trong quá trình triển khai",
@@ -7413,6 +7413,21 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Report access grants": "Quyền truy cập báo cáo",
+    "Read-only report access": "Truy cập báo cáo chỉ đọc",
+    "All-account token usage": "Mức dùng token của mọi tài khoản",
+    "All-account subscription quota": "Hạn mức đăng ký của mọi tài khoản",
+    "Username or user ID": "Tên hoặc ID người dùng (chính xác)",
+    "Account security changed. Save again to renew these grants.": "Bảo mật tài khoản đã thay đổi. Lưu lại để cấp lại quyền.",
+    "Grant read-only access to all accounts in the selected reports. This does not grant administrator permissions.": "Chỉ cấp quyền đọc dữ liệu mọi tài khoản trong báo cáo đã chọn, không cấp quyền quản trị.",
+    "Account report access": "Quyền xem báo cáo của tài khoản",
+    "Only enabled ordinary accounts are listed. Create an account in Users first, then grant access here.": "Chỉ hiển thị tài khoản thường đang bật. Tạo tài khoản trong Người dùng rồi cấp quyền tại đây.",
+    "No eligible accounts": "Không có tài khoản phù hợp",
+    "Check the exact username or user ID, or create and enable an ordinary account in Users.": "Kiểm tra tên hoặc ID chính xác, hoặc tạo và bật tài khoản thường trong Người dùng.",
+    "Saved": "Đã lưu",
+    "View usage and costs for all accounts. No raw logs or API keys.": "Xem mức sử dụng và chi phí của mọi tài khoản, không gồm nhật ký gốc hay khóa API.",
+    "View monitored subscriptions and quota history. No collection or configuration changes.": "Xem các gói đăng ký được theo dõi và lịch sử hạn mức, không thay đổi thu thập hay cấu hình.",
+    "Changes take effect only after saving and identity verification.": "Thay đổi chỉ có hiệu lực sau khi lưu và xác minh danh tính."
   }
 }

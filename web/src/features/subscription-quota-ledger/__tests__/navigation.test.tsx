@@ -4,13 +4,26 @@ import {
   createRoute,
   createRouter,
 } from '@tanstack/react-router'
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 
 import { ROLE } from '@/lib/roles'
 import { Route as LedgerRoute } from '@/routes/_authenticated/subscription-quota'
 import { Route as SettingsRoute } from '@/routes/_authenticated/system-settings/subscription-quota'
 import { useAuthStore } from '@/stores/auth-store'
 
+let observer = false
+vi.mock('@/features/report-access/api', () => ({
+  getReportCapabilities: vi.fn(async () => ({
+    usage_read_all: false,
+    subscription_read_all:
+      observer || useAuthStore.getState().auth.user?.role === 100,
+    can_manage_grants: false,
+    revision: 'route-test',
+  })),
+}))
+afterEach(() => {
+  observer = false
+})
 afterEach(() => useAuthStore.getState().auth.reset())
 
 async function openQuotaRoute(url: string, role: number = ROLE.SUPER_ADMIN) {
@@ -84,3 +97,18 @@ test.each([
     expect(router.state.location.pathname).toBe('/403')
   }
 )
+
+test('账本观察者可打开报表，但仍不能打开Root配置页', async () => {
+  observer = true
+  const ledger = await openQuotaRoute(
+    '/subscription-quota?view=history',
+    ROLE.USER
+  )
+  expect(ledger.state.location.pathname).toBe('/subscription-quota')
+  expect(ledger.state.matches.at(-1)?.status).toBe('success')
+  const settings = await openQuotaRoute(
+    '/system-settings/subscription-quota',
+    ROLE.USER
+  )
+  expect(settings.state.location.pathname).toBe('/403')
+})

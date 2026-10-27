@@ -2872,7 +2872,7 @@
     "footer.columns.related.links.oneApi": "Один API",
     "footer.columns.related.title": "Связанные проекты",
     "footer.defaultCopyright": "Все права защищены.",
-    "footer.new\u0061pi.projectAttributionSuffix": "Все права защищены. Разработано участниками проекта.",
+    "footer.newapi.projectAttributionSuffix": "Все права защищены. Разработано участниками проекта.",
     "For advanced custom channels this applies only to /v1/responses routes without protocol conversion.": "Для расширенных пользовательских каналов это действует только для маршрутов /v1/responses без преобразования протокола.",
     "GitHub ID is empty!": "GitHub ID не указан!",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "Для каналов, добавленных после 10 мая 2025 г., не нужно удалять \".\" из имён моделей при развёртывании",
@@ -7413,6 +7413,21 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Report access grants": "Доступ к отчётам",
+    "Read-only report access": "Просмотр отчётов",
+    "All-account token usage": "Использование токенов всех аккаунтов",
+    "All-account subscription quota": "Квоты подписок всех аккаунтов",
+    "Username or user ID": "Имя или ID пользователя (точно)",
+    "Account security changed. Save again to renew these grants.": "Настройки безопасности изменены. Сохраните разрешения повторно.",
+    "Grant read-only access to all accounts in the selected reports. This does not grant administrator permissions.": "Предоставляет только просмотр всех аккаунтов в выбранных отчётах без прав администратора.",
+    "Account report access": "Доступ аккаунтов к отчётам",
+    "Only enabled ordinary accounts are listed. Create an account in Users first, then grant access here.": "Показаны только активные обычные аккаунты. Сначала создайте аккаунт в разделе пользователей, затем выдайте доступ здесь.",
+    "No eligible accounts": "Нет подходящих аккаунтов",
+    "Check the exact username or user ID, or create and enable an ordinary account in Users.": "Проверьте точное имя или ID пользователя либо создайте и включите обычный аккаунт в разделе пользователей.",
+    "Saved": "Сохранено",
+    "View usage and costs for all accounts. No raw logs or API keys.": "Просмотр расхода и стоимости всех аккаунтов без исходных журналов и ключей API.",
+    "View monitored subscriptions and quota history. No collection or configuration changes.": "Просмотр отслеживаемых подписок и истории квот без изменения сбора данных и настроек.",
+    "Changes take effect only after saving and identity verification.": "Изменения вступают в силу после сохранения и проверки личности."
   }
 }

@@ -15,9 +15,14 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-import { useQuery } from '@tanstack/react-query'
+import { useQueryClient, useQuery } from '@tanstack/react-query'
+import { CanceledError } from 'axios'
 
-import { ROLE } from '@/lib/roles'
+import {
+  useReportAccess,
+  reportIdentity,
+  reportReadFailure,
+} from '@/features/report-access/hooks'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { getUsageSummary } from '../api'
@@ -29,27 +34,48 @@ export function useUsageSummary(
   requestedScope: UsageSummaryScope
 ) {
   const user = useAuthStore((state) => state.auth.user)
-  const canManageScope = (user?.role ?? ROLE.GUEST) >= ROLE.ADMIN
+  const access = useReportAccess()
+  const client = useQueryClient()
+  const canManageScope = access.canReadUsageAll
   const scope: UsageSummaryScope =
     canManageScope && requestedScope === 'all' ? 'all' : 'self'
 
   const query = useQuery({
     queryKey: [
+      'pong-report-data',
+      access.identity,
+      access.revision,
       'usage-summary',
       scope,
       range.id,
       range.startTimestamp,
       range.endTimestamp,
     ],
-    queryFn: () => getUsageSummary({ scope, range }),
-    enabled: Boolean(user),
+    queryFn: async ({ signal }) => {
+      try {
+        const result = await getUsageSummary({
+          scope,
+          range,
+          observer: access.canReadUsageAll,
+          signal,
+        })
+        if (reportIdentity() !== access.identity) throw new CanceledError()
+        return result
+      } catch (error) {
+        if (reportIdentity() !== access.identity) throw new CanceledError()
+        return reportReadFailure(client, error)
+      }
+    },
+    enabled: Boolean(user) && !access.isPending,
     staleTime: USAGE_SUMMARY_STALE_TIME,
     refetchOnWindowFocus: false,
-    placeholderData: (previousData) => previousData,
+    retry: false,
   })
 
   return {
     ...query,
+    isLoading: query.isLoading || access.isPending,
+    data: !query.isError && !access.isPending ? query.data : undefined,
     scope,
     canManageScope,
   }

@@ -42,6 +42,7 @@ import { useTranslation } from 'react-i18next'
 
 import { pongAPIConsoleItems } from '@/components/layout/config/pong-api-console.config'
 import type { SidebarData } from '@/components/layout/types'
+import { useReportAccess } from '@/features/report-access/hooks'
 import { ROLE } from '@/lib/roles'
 
 /**
@@ -51,6 +52,7 @@ import { ROLE } from '@/lib/roles'
  * registered in `layout/lib/sidebar-view-registry.ts`.
  */
 export function useSidebarData(): SidebarData {
+  const { canReadLedger } = useReportAccess()
   const { t } = useTranslation()
 
   return {
@@ -105,7 +107,7 @@ export function useSidebarData(): SidebarData {
             url: '/usage-summary',
             icon: BarChart3,
           },
-          ...pongAPIConsoleItems(t),
+          ...pongAPIConsoleItems(t, canReadLedger),
           {
             title: t('Task Logs'),
             url: '/usage-logs/task',

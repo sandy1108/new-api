@@ -4,16 +4,18 @@ export type Settings = {
   version: number
   updated_at: number
 }
-export type Subject = {
+export type ReadSubject = {
   id: number
   name: string
-  source_channel_id: number
   enabled: boolean
-  version: number
-  next_due_at: number
   last_attempt_at: number
   last_success_at: number
   error_code: string
+}
+export type Subject = ReadSubject & {
+  source_channel_id: number
+  version: number
+  next_due_at: number
 }
 export type Channel = { id: number; name: string; type: number; bound: boolean }
 export type Page<T> = { items: T[]; total: number; ledger_revision?: number }
@@ -64,7 +66,7 @@ export type Current = {
 }
 export type Summary = {
   collection_enabled: boolean
-  subject: Subject
+  subject: ReadSubject
   ledger_revision: number
   summary: MonthSummary
   current: Record<string, Current>

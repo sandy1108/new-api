@@ -2964,7 +2964,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "相关项目",
     "footer.defaultCopyright": "版权所有。",
-    "footer.new\u0061pi.projectAttributionSuffix": "版权所有，由项目贡献者设计与开发。",
+    "footer.newapi.projectAttributionSuffix": "版权所有，由项目贡献者设计与开发。",
     "For advanced custom channels this applies only to /v1/responses routes without protocol conversion.": "高级自定义渠道仅对 /v1/responses 且不做协议转换的路由生效。",
     "GitHub ID is empty!": "GitHub ID 为空！",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "对于 2025 年 5 月 10 日之后添加的渠道，在部署时无需从模型名称中移除 \".\"",
@@ -7505,6 +7505,21 @@
     "Zhipu": "智谱",
     "Zhipu GLM": "智谱GLM",
     "Zhipu V4": "智谱 V4",
-    "Zoom": "缩放"
+    "Zoom": "缩放",
+    "Report access grants": "报表只读授权",
+    "Read-only report access": "只读报表访问",
+    "All-account token usage": "全站Token用量",
+    "All-account subscription quota": "全站订阅额度账本",
+    "Username or user ID": "用户名或用户ID（精确匹配）",
+    "Account security changed. Save again to renew these grants.": "账户安全信息已变更，重新保存后授权才会生效。",
+    "Grant read-only access to all accounts in the selected reports. This does not grant administrator permissions.": "仅授予所选报表的全站数据读取权限，不授予管理员权限。",
+    "Account report access": "账号报表权限",
+    "Only enabled ordinary accounts are listed. Create an account in Users first, then grant access here.": "仅显示已启用的普通账号。请先在「用户」中创建账号，再在此分配报表权限。",
+    "No eligible accounts": "没有符合条件的账号",
+    "Check the exact username or user ID, or create and enable an ordinary account in Users.": "请核对完整用户名或用户ID，或在「用户」中创建并启用普通账号。",
+    "Saved": "已保存",
+    "View usage and costs for all accounts. No raw logs or API keys.": "查看所有账号的用量与费用汇总，不含原始日志或API密钥。",
+    "View monitored subscriptions and quota history. No collection or configuration changes.": "查看已监测订阅及额度历史，不能修改采集或其他配置。",
+    "Changes take effect only after saving and identity verification.": "修改需保存并完成身份验证后才会生效。"
   }
 }

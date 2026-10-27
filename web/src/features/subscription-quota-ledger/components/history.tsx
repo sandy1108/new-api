@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -7,6 +7,7 @@ import type { z } from 'zod'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { StaticDataTable } from '@/components/data-table'
+import { Dialog } from '@/components/dialog'
 import { ErrorState } from '@/components/error-state'
 import { LoadingState } from '@/components/loading-state'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
+import { useReportAccess, useLedgerRead } from '@/features/report-access/hooks'
 import { toIntlLocale } from '@/i18n/languages'
 import { formatNumber } from '@/lib/format'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -31,19 +33,16 @@ import { QuotaSelect } from './quota-select'
 
 export function QuotaHistory(props: { filters: Filters }) {
   const { t, i18n } = useTranslation()
+  const access = useReportAccess()
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
   const [page, setPage] = useState(1)
   const [event, setEvent] = useState<QuotaEvent | null>(null)
-  const cycles = useQuery({
-    queryKey: [...quotaKey, 'cycles', props.filters, page],
-    queryFn: () => getCycles(props.filters, page),
-    refetchInterval: 60_000,
-  })
-  const events = useQuery({
-    queryKey: [...quotaKey, 'events', props.filters, page],
-    queryFn: () => getEvents(props.filters, page),
-    refetchInterval: 60_000,
-  })
+  const cycles = useLedgerRead(['cycles', props.filters, page], (signal) =>
+    getCycles(props.filters, page, signal)
+  )
+  const events = useLedgerRead(['events', props.filters, page], (signal) =>
+    getEvents(props.filters, page, signal)
+  )
   if (cycles.isPending || events.isPending) return <LoadingState />
   if (cycles.isError || events.isError) {
     return (
@@ -63,7 +62,7 @@ export function QuotaHistory(props: { filters: Filters }) {
         </CardHeader>
         <CardContent>
           <StaticDataTable
-            data={cycles.data.items}
+            data={cycles.data?.items ?? []}
             emptyContent={t('No Data')}
             columns={[
               {
@@ -120,7 +119,7 @@ export function QuotaHistory(props: { filters: Filters }) {
         </CardHeader>
         <CardContent className='space-y-4'>
           <StaticDataTable
-            data={events.data.items}
+            data={events.data?.items ?? []}
             getRowKey={(row) => row.id}
             emptyContent={t('No Data')}
             columns={[
@@ -179,7 +178,8 @@ export function QuotaHistory(props: { filters: Filters }) {
             <Button
               variant='outline'
               disabled={
-                page * 20 >= Math.max(cycles.data.total, events.data.total)
+                page * 20 >=
+                Math.max(cycles.data?.total ?? 0, events.data?.total ?? 0)
               }
               onClick={() => setPage(page + 1)}
             >
@@ -188,15 +188,63 @@ export function QuotaHistory(props: { filters: Filters }) {
           </div>
         </CardContent>
       </Card>
-      {event && (
+      {event && access.canManage && (
         <EventDecision
           key={`${event.id}/${event.version}`}
           event={event}
-          revision={events.data.ledger_revision ?? 0}
+          revision={events.data?.ledger_revision ?? 0}
           onClose={() => setEvent(null)}
         />
       )}
+      {event && !access.canManage && (
+        <ReadonlyEvent event={event} onClose={() => setEvent(null)} />
+      )}
     </div>
+  )
+}
+
+// 观察者只能查看既有本地预览；此组件不导入或调用任何保存方法。
+function ReadonlyEvent(props: { event: QuotaEvent; onClose: () => void }) {
+  const { t, i18n } = useTranslation()
+  const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) props.onClose()
+      }}
+      title={t('Review quota event')}
+      description={t('Read-only report access')}
+    >
+      <p>
+        {t('Expected reset')}: {ledgerTime(props.event.old_reset_at, locale)} →{' '}
+        {ledgerTime(props.event.new_reset_at, locale)}
+      </p>
+      {Object.entries(props.event.previews).map(([decision, preview]) => (
+        <div key={decision} className='mt-4 space-y-1'>
+          <h3 className='font-medium'>{eventLabel(decision, t)}</h3>
+          <p>
+            {t('Observed weekly units')}:{' '}
+            {formatWeeklyUnits(preview?.seven_day.observed_units, locale)}
+          </p>
+          <p>
+            {t('Observed weekly resets')}:{' '}
+            {formatNumber(preview?.seven_day.reset_count, locale)}
+          </p>
+          <p>
+            {t('Estimated unused weekly units')}:{' '}
+            {preview?.seven_day.evaluated_cycles
+              ? formatWeeklyUnits(preview.seven_day.unused_units, locale)
+              : '—'}
+          </p>
+        </div>
+      ))}
+      {props.event.decisions.map((item) => (
+        <p key={item.id} className='mt-3 break-words'>
+          {eventLabel(item.decision, t)}: {item.reason}
+        </p>
+      ))}
+    </Dialog>
   )
 }
 
@@ -263,6 +311,7 @@ function EventDecision(props: {
     onSuccess: async () => {
       props.onClose()
       await client.invalidateQueries({ queryKey: quotaKey })
+      await client.invalidateQueries({ queryKey: ['pong-report-data'] })
     },
     onError: (error) => handleServerError(error),
   })

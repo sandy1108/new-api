@@ -398,6 +398,10 @@ func migrateDB() error {
 			return err
 		}
 	}
+	// 私有报表只迁移自身两表，默认不授予任何普通用户全站能力。
+	if err := MigratePrivateReportAccessTables(DB); err != nil {
+		return err
+	}
 	if err := MigrateClientAccessTables(DB); err != nil {
 		return err
 	}

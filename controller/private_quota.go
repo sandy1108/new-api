@@ -156,9 +156,9 @@ func ListPrivateQuotaSubjects(c *gin.Context) {
 		privateQuotaError(c, err)
 		return
 	}
-	items := make([]privateQuotaSubjectView, 0, len(rows))
+	items := make([]any, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, privateQuotaSubjectDTO(row))
+		items = append(items, privateQuotaSubjectData(c, row))
 	}
 	privateQuotaOK(c, gin.H{"items": items, "total": total, "page": page, "page_size": size})
 }
@@ -259,7 +259,7 @@ func GetPrivateQuotaSummary(c *gin.Context) {
 		current[strconv.FormatInt(row.WindowSeconds, 10)] = gin.H{"used_basis_points": row.UsedBasisPoints, "reset_at": row.ResetAt, "fetched_at": row.FetchedAt, "quality_code": row.QualityCode,
 			"stale": time.Now().Unix()-row.FetchedAt > row.IntervalSeconds*2}
 	}
-	privateQuotaOK(c, gin.H{"subject": privateQuotaSubjectDTO(query.Report.Subject), "collection_enabled": query.Report.CollectionEnabled, "ledger_revision": query.Report.Subject.Version, "summary": privateQuotaSummaryDTO(summary), "current": current, "last_observed_at": query.Report.Ledger.LastObservedAt})
+	privateQuotaOK(c, gin.H{"subject": privateQuotaSubjectData(c, query.Report.Subject), "collection_enabled": query.Report.CollectionEnabled, "ledger_revision": query.Report.Subject.Version, "summary": privateQuotaSummaryDTO(summary), "current": current, "last_observed_at": query.Report.Ledger.LastObservedAt})
 }
 
 func GetPrivateQuotaCycles(c *gin.Context) {

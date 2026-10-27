@@ -17,13 +17,13 @@ import {
 import userEvent from '@testing-library/user-event'
 import i18next from 'i18next'
 import { useState } from 'react'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import { toIntlLocale } from '@/i18n/languages'
 import { api } from '@/lib/api'
+import { useAuthStore } from '@/stores/auth-store'
 
 import { SubscriptionQuotaLedger } from '..'
-import { quotaKey } from '../api'
 import {
   beijingMonth,
   decisionSchema,
@@ -59,9 +59,21 @@ const subjects = [1, 2].map((id) => ({
   last_success_at: 0,
   error_code: '',
 }))
+vi.mock('@/features/report-access/api', () => ({
+  getReportCapabilities: vi.fn(async () => ({
+    usage_read_all: true,
+    subscription_read_all: true,
+    can_manage_grants: true,
+    revision: 'root-test',
+  })),
+}))
+beforeEach(() =>
+  useAuthStore.getState().auth.setUser({ id: 1, username: 'root', role: 100 })
+)
 let client: QueryClient
 afterEach(() => {
   cleanup()
+  useAuthStore.getState().auth.reset()
   client?.clear()
   vi.restoreAllMocks()
 })
@@ -184,7 +196,9 @@ test('switching subscription loads its own summary and preserves unknown versus 
     [null, '—'],
   ] as const) {
     fiveHourUsed = used
-    await act(() => client.invalidateQueries({ queryKey: quotaKey }))
+    await act(() =>
+      client.invalidateQueries({ queryKey: ['pong-report-data'] })
+    )
     expect(await within(shortWindow).findByText(remaining)).toBeInTheDocument()
   }
   expect(screen.queryByText('99')).not.toBeInTheDocument()
@@ -201,7 +215,7 @@ test('switching subscription loads its own summary and preserves unknown versus 
   expect(screen.getByText('0%')).toBeInTheDocument()
   // 模拟下一次成功观测后的本地刷新：即使没有重置，累计值也应立即增长。
   observedUnits = 0.0134
-  await act(() => client.invalidateQueries({ queryKey: quotaKey }))
+  await act(() => client.invalidateQueries({ queryKey: ['pong-report-data'] }))
   expect(await screen.findByText('0.0134')).toBeInTheDocument()
   const user = userEvent.setup()
   await user.click(screen.getByRole('combobox', { name: 'Subscription' }))
@@ -223,7 +237,7 @@ test('switching subscription loads its own summary and preserves unknown versus 
   })
   await waitFor(() =>
     expect(api.get).toHaveBeenCalledWith(
-      '/api/private-quota/summary',
+      '/api/pong-reports/subscription/summary',
       expect.objectContaining({
         params: expect.objectContaining({ subject_id: 2, month: '2026-09' }),
       })

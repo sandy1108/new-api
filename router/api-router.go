@@ -24,6 +24,7 @@ func SetApiRouter(router *gin.Engine) {
 	anonymousRequestBodyLimit := middleware.AnonymousRequestBodyLimit()
 	registerClientAccessRoutes(apiRouter)
 	registerPrivateQuotaRoutes(apiRouter)
+	registerPongReportRoutes(apiRouter)
 	{
 		apiRouter.GET("/setup", controller.GetSetup)
 		apiRouter.POST("/setup", anonymousRequestBodyLimit, controller.PostSetup)

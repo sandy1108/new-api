@@ -2872,7 +2872,7 @@
     "footer.columns.related.links.oneApi": "1つのAPI",
     "footer.columns.related.title": "関連プロジェクト",
     "footer.defaultCopyright": "すべての権利を留保します。",
-    "footer.new\u0061pi.projectAttributionSuffix": "すべての権利を留保します。プロジェクトコントリビューターにより設計・開発されています。",
+    "footer.newapi.projectAttributionSuffix": "すべての権利を留保します。プロジェクトコントリビューターにより設計・開発されています。",
     "For advanced custom channels this applies only to /v1/responses routes without protocol conversion.": "高度なカスタムチャネルでは、プロトコル変換を行わない /v1/responses ルートにのみ適用されます。",
     "GitHub ID is empty!": "GitHub ID が空です！",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "2025 年 5 月 10 日以降に追加されたチャネルの場合、デプロイ時にモデル名から「.」を削除する必要はありません",
@@ -7413,6 +7413,21 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V 4",
-    "Zoom": "ズーム"
+    "Zoom": "ズーム",
+    "Report access grants": "レポートのアクセス権",
+    "Read-only report access": "レポートの閲覧専用アクセス",
+    "All-account token usage": "全アカウントのトークン使用量",
+    "All-account subscription quota": "全アカウントのサブスクリプション枠",
+    "Username or user ID": "ユーザー名またはID（完全一致）",
+    "Account security changed. Save again to renew these grants.": "アカウントのセキュリティが変更されました。権限を再保存してください。",
+    "Grant read-only access to all accounts in the selected reports. This does not grant administrator permissions.": "選択したレポートの全アカウントデータの閲覧のみを許可します。管理者権限は付与しません。",
+    "Account report access": "アカウントのレポート権限",
+    "Only enabled ordinary accounts are listed. Create an account in Users first, then grant access here.": "有効な一般アカウントのみ表示します。「ユーザー」でアカウントを作成してから、ここで権限を付与してください。",
+    "No eligible accounts": "対象のアカウントがありません",
+    "Check the exact username or user ID, or create and enable an ordinary account in Users.": "正確なユーザー名またはIDを確認するか、「ユーザー」で一般アカウントを作成して有効にしてください。",
+    "Saved": "保存済み",
+    "View usage and costs for all accounts. No raw logs or API keys.": "全アカウントの使用量と費用を閲覧できます。生ログやAPIキーは含みません。",
+    "View monitored subscriptions and quota history. No collection or configuration changes.": "監視中のサブスクリプションとクォータ履歴を閲覧できます。収集や設定は変更できません。",
+    "Changes take effect only after saving and identity verification.": "保存と本人確認が完了すると変更が反映されます。"
   }
 }

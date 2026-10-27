@@ -29,6 +29,15 @@ vi.mock('../api', () => ({
   getUsageSummary: vi.fn(),
 }))
 
+vi.mock('@/features/report-access/api', () => ({
+  getReportCapabilities: vi.fn(async () => ({
+    usage_read_all: (useAuthStore.getState().auth.user?.role ?? 0) >= 10,
+    subscription_read_all: false,
+    can_manage_grants: false,
+    revision: 'test',
+  })),
+}))
+
 const mockedGetUsageSummary = vi.mocked(getUsageSummary)
 const range: UsageSummaryRange = {
   id: 'today',
@@ -75,8 +84,10 @@ describe('useUsageSummary', () => {
     await waitFor(() => expect(result.result.current.isSuccess).toBe(true))
     expect(result.result.current.scope).toBe('all')
     expect(result.result.current.canManageScope).toBe(true)
-    expect(mockedGetUsageSummary).toHaveBeenCalledWith({ scope: 'all', range })
-    expect(queryClient.getQueryCache().findAll()).toHaveLength(1)
+    expect(mockedGetUsageSummary).toHaveBeenCalledWith(
+      expect.objectContaining({ scope: 'all', range, observer: true })
+    )
+    expect(queryClient.getQueryCache().findAll()).toHaveLength(2)
   })
 
   test('forces a non-administrator request to the self scope', async () => {
@@ -93,6 +104,8 @@ describe('useUsageSummary', () => {
     await waitFor(() => expect(result.result.current.isSuccess).toBe(true))
     expect(result.result.current.scope).toBe('self')
     expect(result.result.current.canManageScope).toBe(false)
-    expect(mockedGetUsageSummary).toHaveBeenCalledWith({ scope: 'self', range })
+    expect(mockedGetUsageSummary).toHaveBeenCalledWith(
+      expect.objectContaining({ scope: 'self', range, observer: false })
+    )
   })
 })

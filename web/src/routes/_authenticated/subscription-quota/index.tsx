@@ -1,19 +1,21 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { z } from 'zod'
 
+import { getReportCapabilities } from '@/features/report-access/api'
 import { SubscriptionQuotaLedger } from '@/features/subscription-quota-ledger'
-import { ROLE } from '@/lib/roles'
-import { useAuthStore } from '@/stores/auth-store'
 
 export const Route = createFileRoute('/_authenticated/subscription-quota/')({
   validateSearch: z.object({
     view: z.enum(['overview', 'history']).catch('overview').optional(),
   }),
-  // 从系统设置移出后仍保持原有超级管理员门槛，不能仅依赖侧栏隐藏。
-  beforeLoad: () => {
-    if (useAuthStore.getState().auth.user?.role !== ROLE.SUPER_ADMIN) {
-      throw redirect({ to: '/403' })
+  // 独立报表能力只开放此页；系统设置父路由仍保持Root门槛。
+  beforeLoad: async () => {
+    try {
+      if ((await getReportCapabilities()).subscription_read_all) return
+    } catch {
+      /* 能力不可用时关闭入口，绝不回退管理员身份。 */
     }
+    throw redirect({ to: '/403' })
   },
   component: QuotaRoute,
 })

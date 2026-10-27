@@ -2964,7 +2964,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "Related Projects",
     "footer.defaultCopyright": "All rights reserved.",
-    "footer.new\u0061pi.projectAttributionSuffix": "All rights reserved. Designed and developed by the project contributors.",
+    "footer.newapi.projectAttributionSuffix": "All rights reserved. Designed and developed by the project contributors.",
     "For advanced custom channels this applies only to /v1/responses routes without protocol conversion.": "For advanced custom channels this applies only to /v1/responses routes without protocol conversion.",
     "GitHub ID is empty!": "GitHub ID is empty!",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment",
@@ -7505,6 +7505,21 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Report access grants": "Report access grants",
+    "Read-only report access": "Read-only report access",
+    "All-account token usage": "All-account token usage",
+    "All-account subscription quota": "All-account subscription quota",
+    "Username or user ID": "Username or user ID",
+    "Account security changed. Save again to renew these grants.": "Account security changed. Save again to renew these grants.",
+    "Grant read-only access to all accounts in the selected reports. This does not grant administrator permissions.": "Grant read-only access to all accounts in the selected reports. This does not grant administrator permissions.",
+    "Account report access": "Account report access",
+    "Only enabled ordinary accounts are listed. Create an account in Users first, then grant access here.": "Only enabled ordinary accounts are listed. Create an account in Users first, then grant access here.",
+    "No eligible accounts": "No eligible accounts",
+    "Check the exact username or user ID, or create and enable an ordinary account in Users.": "Check the exact username or user ID, or create and enable an ordinary account in Users.",
+    "Saved": "Saved",
+    "View usage and costs for all accounts. No raw logs or API keys.": "View usage and costs for all accounts. No raw logs or API keys.",
+    "View monitored subscriptions and quota history. No collection or configuration changes.": "View monitored subscriptions and quota history. No collection or configuration changes.",
+    "Changes take effect only after saving and identity verification.": "Changes take effect only after saving and identity verification."
   }
 }

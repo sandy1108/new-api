@@ -2872,7 +2872,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "Projets liés",
     "footer.defaultCopyright": "Tous droits réservés.",
-    "footer.new\u0061pi.projectAttributionSuffix": "Tous droits réservés. Conçu et développé par les contributeurs du projet.",
+    "footer.newapi.projectAttributionSuffix": "Tous droits réservés. Conçu et développé par les contributeurs du projet.",
     "For advanced custom channels this applies only to /v1/responses routes without protocol conversion.": "Pour les canaux personnalisés avancés, ceci ne s’applique qu’aux routes /v1/responses sans conversion de protocole.",
     "GitHub ID is empty!": "L’ID GitHub est vide !",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "Pour les canaux ajoutés après le 10 mai 2025, pas besoin de supprimer \".\" des noms de modèles lors du déploiement",
@@ -7413,6 +7413,21 @@
     "Zhipu": "Zhipu",
     "Zhipu GLM": "Zhipu GLM",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Report access grants": "Accès aux rapports",
+    "Read-only report access": "Accès en lecture seule",
+    "All-account token usage": "Utilisation des tokens de tous les comptes",
+    "All-account subscription quota": "Quotas des abonnements de tous les comptes",
+    "Username or user ID": "Nom ou ID utilisateur (exact)",
+    "Account security changed. Save again to renew these grants.": "La sécurité du compte a changé. Enregistrez à nouveau les autorisations.",
+    "Grant read-only access to all accounts in the selected reports. This does not grant administrator permissions.": "Autorisez la lecture de tous les comptes dans les rapports sélectionnés, sans droits d’administration.",
+    "Account report access": "Accès des comptes aux rapports",
+    "Only enabled ordinary accounts are listed. Create an account in Users first, then grant access here.": "Seuls les comptes ordinaires actifs sont affichés. Créez un compte dans Utilisateurs, puis accordez les droits ici.",
+    "No eligible accounts": "Aucun compte admissible",
+    "Check the exact username or user ID, or create and enable an ordinary account in Users.": "Vérifiez le nom ou l’identifiant exact, ou créez et activez un compte ordinaire dans Utilisateurs.",
+    "Saved": "Enregistré",
+    "View usage and costs for all accounts. No raw logs or API keys.": "Consulter les usages et coûts de tous les comptes, sans journaux bruts ni clés API.",
+    "View monitored subscriptions and quota history. No collection or configuration changes.": "Consulter les abonnements suivis et l’historique des quotas, sans modifier la collecte ni la configuration.",
+    "Changes take effect only after saving and identity verification.": "Les modifications prennent effet après enregistrement et vérification d’identité."
   }
 }
